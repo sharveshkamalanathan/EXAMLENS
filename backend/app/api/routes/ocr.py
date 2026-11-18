@@ -1,0 +1,187 @@
+import os
+from typing import List, Optional
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException, status, Body
+from sqlalchemy.orm import Session
+from app.database.session import get_db
+from app.core.config import settings
+from app.core.deps import get_current_teacher
+from app.models.user import User
+from app.models.script import AnswerScript, ScriptPage, OCRResult, ExtractedAnswer, Submission
+from app.models.question import Question
+from app.schemas.script import (
+    OCRResultResponse,
+    ExtractedAnswerResponse,
+    ExtractedAnswerUpdate
+)
+from app.services.ocr.service import process_page_ocr
+from app.services.answer_segmentation import segment_text_by_questions
+
+router = APIRouter(tags=["OCR & Handwriting Recognition"])
+
+@router.post("/scripts/{script_id}/process-ocr")
+def run_script_ocr(
+    script_id: str,
+    current_teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    script = db.query(AnswerScript).filter(AnswerScript.id == script_id).first()
+    if not script:
+        raise HTTPException(status_code=404, detail="Script not found")
+    if script.exam.teacher_id != current_teacher.id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    script.processing_status = "ocr_processing"
+    db.commit()
+
+    all_page_texts = []
+    has_low_conf = False
+
+    # Process each page
+    for page in script.pages:
+        # Determine image path on disk
+        img_name = os.path.basename(page.processed_image_path or page.original_image_path)
+        img_disk_path = os.path.join(settings.PROCESSED_DIR, script.id, img_name)
+        if not os.path.exists(img_disk_path):
+            img_disk_path = os.path.join(settings.PROCESSED_DIR, img_name)
+
+        # Run OCR
+        ocr_data = process_page_ocr(img_disk_path, page.page_number)
+        
+        # Save OCR Result
+        ocr_rec = OCRResult(
+            script_page_id=page.id,
+            provider=ocr_data.provider,
+            extracted_text=ocr_data.extracted_text,
+            structured_output_json=ocr_data.model_dump_json(),
+            processing_time_ms=ocr_data.processing_time_ms,
+            confidence=ocr_data.confidence,
+            status="completed"
+        )
+        db.add(ocr_rec)
+        all_page_texts.append(ocr_data.extracted_text)
+        
+        if ocr_data.confidence < 0.80:
+            has_low_conf = True
+
+    combined_text = "\n\n".join(all_page_texts)
+
+    # Question segmentation
+    questions = db.query(Question).filter(Question.exam_id == script.exam_id).order_by(Question.display_order).all()
+    segmented = segment_text_by_questions(combined_text, questions)
+
+    # Delete any prior extracted answers
+    db.query(ExtractedAnswer).filter(ExtractedAnswer.answer_script_id == script.id).delete()
+
+    for seg in segmented:
+        ext_ans = ExtractedAnswer(
+            answer_script_id=script.id,
+            question_id=seg["question_id"],
+            page_references="1",
+            original_ocr_text=seg["text"],
+            corrected_text=None,
+            segmentation_confidence=seg["confidence"],
+            verification_status="unverified"
+        )
+        db.add(ext_ans)
+
+    script.processing_status = "ocr_verification_required" if has_low_conf else "ocr_completed"
+    db.commit()
+    db.refresh(script)
+
+    return {
+        "message": "Handwriting OCR completed successfully",
+        "script_id": script.id,
+        "processing_status": script.processing_status,
+        "segmented_answers_count": len(segmented),
+        "requires_verification": has_low_conf
+    }
+
+@router.get("/scripts/{script_id}/ocr", response_model=List[OCRResultResponse])
+def get_script_ocr_results(
+    script_id: str,
+    current_teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    script = db.query(AnswerScript).filter(AnswerScript.id == script_id).first()
+    if not script:
+        raise HTTPException(status_code=404, detail="Script not found")
+    if script.exam.teacher_id != current_teacher.id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    results = []
+    for p in script.pages:
+        for r in p.ocr_results:
+            results.append(r)
+    return results
+
+@router.put("/answers/{answer_id}", response_model=ExtractedAnswerResponse)
+def update_extracted_answer(
+    answer_id: str,
+    ans_in: ExtractedAnswerUpdate,
+    current_teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    answer = db.query(ExtractedAnswer).filter(ExtractedAnswer.id == answer_id).first()
+    if not answer:
+        raise HTTPException(status_code=404, detail="Extracted answer not found")
+    if answer.script.exam.teacher_id != current_teacher.id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    if ans_in.corrected_text is not None:
+        answer.corrected_text = ans_in.corrected_text
+        answer.verification_status = "corrected"
+    if ans_in.question_id is not None:
+        answer.question_id = ans_in.question_id
+    if ans_in.verification_status is not None:
+        answer.verification_status = ans_in.verification_status
+
+    db.commit()
+    db.refresh(answer)
+    return answer
+
+@router.post("/scripts/{script_id}/ocr/verify")
+def verify_script_ocr(
+    script_id: str,
+    current_teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    """
+    Teacher confirms extracted OCR text.
+    Promotes extracted answers into official Submission records ready for AI Evaluation.
+    """
+    script = db.query(AnswerScript).filter(AnswerScript.id == script_id).first()
+    if not script:
+        raise HTTPException(status_code=404, detail="Script not found")
+    if script.exam.teacher_id != current_teacher.id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    for ans in script.extracted_answers:
+        ans.verification_status = "verified" if ans.verification_status != "corrected" else "corrected"
+        ans.verified_by = current_teacher.id
+        ans.verified_at = datetime.now(timezone.utc)
+
+        # Create or update Submission
+        existing_sub = db.query(Submission).filter(
+            Submission.answer_script_id == script.id,
+            Submission.question_id == ans.question_id
+        ).first()
+
+        final_content = ans.corrected_text if ans.corrected_text is not None else ans.original_ocr_text
+
+        if existing_sub:
+            existing_sub.student_answer = final_content
+            existing_sub.verification_status = ans.verification_status
+            existing_sub.updated_at = datetime.now(timezone.utc)
+        else:
+            new_sub = Submission(
+                answer_script_id=script.id,
+                question_id=ans.question_id,
+                student_answer=final_content,
+                verification_status=ans.verification_status
+            )
+            db.add(new_sub)
+
+    script.processing_status = "ready_for_evaluation"
+    db.commit()
+    return {"message": "OCR verified and answers prepared for AI evaluation", "status": script.processing_status}

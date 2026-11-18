@@ -1,0 +1,159 @@
+# ==============================================================================
+# ExamLens .gitignore
+# Fullstack AI-Assisted Handwritten Exam Evaluation Platform
+# Stack: FastAPI (Python 3.10+), React + TypeScript + Vite, SQLite, Local Storage
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Python & FastAPI Backend
+# ------------------------------------------------------------------------------
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Packaging & Distribution
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing, Coverage & Linters
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+# ------------------------------------------------------------------------------
+# 2. Node.js & Vite Frontend
+# ------------------------------------------------------------------------------
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+frontend/dist/
+frontend/dist-ssr/
+dist/
+dist-ssr/
+
+# Vite & TypeScript Caches
+.vite/
+.vite-temp/
+*.tsbuildinfo
+
+# Frontend logs & debuggers
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+logs/
+*.log
+
+# Linters
+.eslintcache
+.stylelintcache
+
+# ------------------------------------------------------------------------------
+# 3. Databases & Local State
+# ------------------------------------------------------------------------------
+# SQLite databases, journals & WAL files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backend/examlens.db
+
+# ------------------------------------------------------------------------------
+# 4. Storage & Uploads
+# ------------------------------------------------------------------------------
+# User exam paper scans, uploads, and processed images
+storage/
+uploads/
+processed/
+
+# ------------------------------------------------------------------------------
+# 5. Environment Variables & Secrets
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ------------------------------------------------------------------------------
+# 6. IDEs & Editors
+# ------------------------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------------------------
+# 7. Operating System Artifacts
+# ------------------------------------------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ------------------------------------------------------------------------------
+# 8. Local Tooling & Binaries
+# ------------------------------------------------------------------------------
+node-bin/
