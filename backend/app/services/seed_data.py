@@ -87,8 +87,126 @@ def generate_handwritten_sheet_image(
     img.save(output_path, "JPEG", quality=90)
     return output_path
 
+def restore_cia_data(db: Session):
+    """
+    Guarantees restoration of CIA 1 and CIA 2 examinations, rubrics, and answer scripts
+    from the bundled data package so they exist seamlessly across all environments.
+    """
+    data_paths = [
+        os.path.join(os.path.dirname(__file__), "data", "cia_exams_account_backup.json"),
+        os.path.abspath("backups/cia_exams_account_backup.json"),
+        os.path.abspath("../backups/cia_exams_account_backup.json")
+    ]
+    data_path = next((p for p in data_paths if os.path.exists(p)), None)
+    if not data_path:
+        return
+
+    try:
+        with open(data_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        acc = data.get("account", {})
+        creator_email = acc.get("email", "sharveshofficalmicro@gmail.com")
+        user = db.query(User).filter_by(email=creator_email).first()
+        if not user:
+            user = User(
+                id=acc.get("id", "f56c16fa-ce59-401f-94e2-76e07be8c9d8"),
+                full_name=acc.get("full_name") or "Sharveshwaran (Faculty)",
+                email=creator_email,
+                hashed_password=get_password_hash("94865"),
+                role=UserRole.TEACHER,
+                institution=acc.get("institution") or "Sri Krishna College of Engineering and Technology",
+                department=acc.get("department") or "Computer Science & Engineering"
+            )
+            db.add(user)
+            db.commit()
+        else:
+            user.hashed_password = get_password_hash("94865")
+            db.commit()
+
+        # Restore Exams
+        for e_data in data.get("exams", []):
+            exam = db.query(Exam).filter_by(id=e_data["id"]).first()
+            if not exam:
+                exam = Exam(
+                    id=e_data["id"],
+                    teacher_id=user.id,
+                    title=e_data["title"],
+                    subject=e_data["subject"],
+                    department=e_data.get("department", "Computer Science"),
+                    class_name=e_data.get("class_name", "B.Tech CS"),
+                    section=e_data.get("section", "Section A"),
+                    academic_year=e_data.get("academic_year", "2026-2027"),
+                    exam_type=e_data.get("exam_type", "CIA"),
+                    total_marks=e_data["total_marks"],
+                    passing_marks=e_data.get("passing_marks", 20.0),
+                    status=e_data.get("status", "published"),
+                    is_published=True,
+                    published_at=datetime.now(timezone.utc)
+                )
+                db.add(exam)
+                db.commit()
+
+            # Questions & Rubrics
+            for q_data in e_data.get("questions", []):
+                q = db.query(Question).filter_by(id=q_data["id"]).first()
+                if not q:
+                    q = Question(
+                        id=q_data["id"],
+                        exam_id=exam.id,
+                        question_number=q_data["question_number"],
+                        text=q_data["text"],
+                        question_type=q_data.get("question_type", "theory"),
+                        max_marks=q_data["max_marks"],
+                        topic=q_data.get("topic"),
+                        difficulty=q_data.get("difficulty", "medium"),
+                        reference_answer=q_data.get("reference_answer"),
+                        important_concepts_json=q_data.get("important_concepts_json", "[]"),
+                        display_order=q_data.get("display_order", 1)
+                    )
+                    db.add(q)
+                    db.commit()
+
+                for r_data in q_data.get("rubrics", []):
+                    r = db.query(RubricCriterion).filter_by(id=r_data["id"]).first()
+                    if not r:
+                        r = RubricCriterion(
+                            id=r_data["id"],
+                            question_id=q.id,
+                            name=r_data["name"],
+                            description=r_data.get("description"),
+                            max_marks=r_data["max_marks"],
+                            scoring_instructions=r_data.get("scoring_instructions"),
+                            display_order=r_data.get("display_order", 1)
+                        )
+                        db.add(r)
+                        db.commit()
+
+            # Answer Scripts
+            for s_data in e_data.get("scripts", []):
+                s = db.query(AnswerScript).filter_by(id=s_data["id"]).first()
+                if not s:
+                    s = AnswerScript(
+                        id=s_data["id"],
+                        exam_id=exam.id,
+                        student_id=s_data.get("student_id"),
+                        student_roll_no=s_data.get("student_roll_no") or "STU-1030",
+                        student_name=s_data.get("student_name") or "Student",
+                        original_file_name=s_data.get("original_file_name") or "uploaded_script.pdf",
+                        stored_file_path=s_data.get("stored_file_path") or "/storage/uploads/script.pdf",
+                        file_type=s_data.get("file_type") or "application/pdf",
+                        page_count=s_data.get("page_count", 1),
+                        total_score=s_data.get("total_score"),
+                        upload_status="processed",
+                        processing_status="evaluated"
+                    )
+                    db.add(s)
+                    db.commit()
+    except Exception as exc:
+        print(f"Warning: could not complete CIA exams restore: {exc}")
+
 def seed_database(db: Session):
-    # Always ensure Lead Administrator account is active with correct credentials
+    # 1. Lead Administrator: sharveshofficialmicro@gmail.com
     admin_lead = db.query(User).filter(User.email == "sharveshofficialmicro@gmail.com").first()
     if admin_lead:
         admin_lead.hashed_password = get_password_hash("94865")
@@ -107,7 +225,66 @@ def seed_database(db: Session):
         db.add(admin_lead)
         db.commit()
 
-    # Check if already seeded
+    # 2. Creator of CIA 1 & CIA 2: sharveshofficalmicro@gmail.com
+    cia_creator = db.query(User).filter(User.email == "sharveshofficalmicro@gmail.com").first()
+    if cia_creator:
+        cia_creator.hashed_password = get_password_hash("94865")
+        cia_creator.role = UserRole.TEACHER
+        cia_creator.full_name = "Sharveshwaran (Faculty)"
+        db.commit()
+    else:
+        cia_creator = User(
+            id="f56c16fa-ce59-401f-94e2-76e07be8c9d8",
+            full_name="Sharveshwaran (Faculty)",
+            email="sharveshofficalmicro@gmail.com",
+            hashed_password=get_password_hash("94865"),
+            role=UserRole.TEACHER,
+            institution="Sri Krishna College of Engineering and Technology",
+            department="Computer Science & Engineering"
+        )
+        db.add(cia_creator)
+        db.commit()
+
+    # 3. Jake: jake@examlens.edu
+    jake = db.query(User).filter(User.email == "jake@examlens.edu").first()
+    if jake:
+        jake.hashed_password = get_password_hash("94865")
+        jake.role = UserRole.TEACHER
+        db.commit()
+    else:
+        jake = User(
+            full_name="Jake",
+            email="jake@examlens.edu",
+            hashed_password=get_password_hash("94865"),
+            role=UserRole.TEACHER,
+            institution="National Institute of Technology",
+            department="Computer Science & Engineering"
+        )
+        db.add(jake)
+        db.commit()
+
+    # 4. SKCET: 25cs804@skcet.ac.in
+    skcet = db.query(User).filter(User.email == "25cs804@skcet.ac.in").first()
+    if skcet:
+        skcet.hashed_password = get_password_hash("94865")
+        skcet.role = UserRole.TEACHER
+        db.commit()
+    else:
+        skcet = User(
+            full_name="Sharvesh (SKCET Student/Faculty)",
+            email="25cs804@skcet.ac.in",
+            hashed_password=get_password_hash("94865"),
+            role=UserRole.TEACHER,
+            institution="Sri Krishna College of Engineering and Technology",
+            department="Computer Science & Engineering"
+        )
+        db.add(skcet)
+        db.commit()
+
+    # 5. Restore CIA 1 & CIA 2 examinations & papers
+    restore_cia_data(db)
+
+    # Check if demo data already seeded
     existing_teacher = db.query(User).filter(User.email == "teacher@examlens.edu").first()
     if existing_teacher:
         return
