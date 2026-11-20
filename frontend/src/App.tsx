@@ -352,6 +352,8 @@ const AppContent: React.FC = () => {
             currentTab === 'student-analytics' || 
             currentTab === 'student-feedback') && (
             <StudentDashboard 
+              activeTab={currentTab}
+              onNavigateTab={(tab) => handleNavigate(tab)}
               onSelectExam={(examId) => {
                 setSelectedExamId(examId);
                 setCurrentTab('student-exam-detail');

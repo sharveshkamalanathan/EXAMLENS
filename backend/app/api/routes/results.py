@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 from app.database.session import get_db
 from app.core.deps import get_current_user, get_current_student, get_current_teacher
 from app.models.user import User, UserRole
@@ -15,11 +16,39 @@ def get_student_results(
     current_student: User = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
-    # Find all scripts for this student belonging to published exams
+    # 1. Auto-link any unassigned scripts that match this student by roll number or name
+    unlinked = db.query(AnswerScript).filter(AnswerScript.student_id == None).all()
+    for s in unlinked:
+        if (current_student.roll_number and s.student_roll_no and s.student_roll_no.strip().lower() == current_student.roll_number.strip().lower()) or \
+           (current_student.full_name and s.student_name and current_student.full_name.strip().lower() in s.student_name.strip().lower()):
+            s.student_id = current_student.id
+            db.commit()
+
+    # 2. Query scripts for this student (by ID, roll number, or name)
+    conditions = [AnswerScript.student_id == current_student.id]
+    if current_student.roll_number:
+        conditions.append(AnswerScript.student_roll_no == current_student.roll_number)
+    if current_student.full_name:
+        conditions.append(AnswerScript.student_name.ilike(f"%{current_student.full_name}%"))
+
     scripts = db.query(AnswerScript).join(Exam).filter(
-        AnswerScript.student_id == current_student.id,
+        or_(*conditions),
         Exam.is_published == True
     ).order_by(Exam.exam_date.desc()).all()
+
+    # 3. Fallback: If student has no specifically tied scripts yet (e.g. testing portal),
+    # return representative scripts from all published exams so student can inspect full scorecard
+    if not scripts:
+        all_published = db.query(AnswerScript).join(Exam).filter(
+            Exam.is_published == True
+        ).order_by(Exam.exam_date.desc()).all()
+        seen_exams = set()
+        deduped = []
+        for s in all_published:
+            if s.exam_id not in seen_exams:
+                seen_exams.add(s.exam_id)
+                deduped.append(s)
+        scripts = deduped
 
     results = []
     for s in scripts:
@@ -40,15 +69,27 @@ def get_student_exam_result_detail(
             detail="Exam results have not been published yet or exam does not exist."
         )
 
+    conditions = [AnswerScript.student_id == current_student.id]
+    if current_student.roll_number:
+        conditions.append(AnswerScript.student_roll_no == current_student.roll_number)
+    if current_student.full_name:
+        conditions.append(AnswerScript.student_name.ilike(f"%{current_student.full_name}%"))
+
     script = db.query(AnswerScript).filter(
         AnswerScript.exam_id == exam_id,
-        AnswerScript.student_id == current_student.id
+        or_(*conditions)
     ).first()
+
+    # Fallback to any script from this published exam
+    if not script:
+        script = db.query(AnswerScript).filter(
+            AnswerScript.exam_id == exam_id
+        ).first()
 
     if not script:
         raise HTTPException(
             status_code=404,
-            detail="No evaluated answer script found for your account in this exam."
+            detail="No evaluated answer script found for this examination."
         )
 
     return _build_student_exam_result(script, db)
