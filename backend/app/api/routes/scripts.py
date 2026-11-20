@@ -22,7 +22,7 @@ from app.services.answer_segmentation import segment_text_by_questions
 
 router = APIRouter(tags=["Answer Scripts"])
 
-ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".docx", ".doc"}
 
 @router.post("/exams/{exam_id}/scripts/upload", response_model=AnswerScriptResponse)
 async def upload_single_script(
@@ -65,7 +65,7 @@ async def upload_single_script(
         student_name=student_name or (matched_student.full_name if matched_student else f"Student {student_roll_no}"),
         original_file_name=file.filename or "uploaded_script.pdf",
         stored_file_path=f"/storage/uploads/{stored_name}",
-        file_type="application/pdf" if ext == ".pdf" else f"image/{ext.replace('.', '')}",
+        file_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document" if ext in [".docx", ".doc"] else ("application/pdf" if ext == ".pdf" else f"image/{ext.replace('.', '')}"),
         page_count=len(page_paths),
         upload_status="uploaded",
         processing_status="ready_for_ocr",
@@ -151,7 +151,7 @@ async def upload_batch_scripts(
             student_name=matched_student.full_name if matched_student else f"Student {roll_guess}",
             original_file_name=file.filename or "script.pdf",
             stored_file_path=f"/storage/uploads/{stored_name}",
-            file_type="application/pdf" if ext == ".pdf" else f"image/{ext.replace('.', '')}",
+            file_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document" if ext in [".docx", ".doc"] else ("application/pdf" if ext == ".pdf" else f"image/{ext.replace('.', '')}"),
             page_count=len(page_paths),
             upload_status="uploaded",
             processing_status="ready_for_ocr",
@@ -219,9 +219,13 @@ def get_script_detail(
         if script.exam.teacher_id != current_user.id:
             raise HTTPException(status_code=403, detail="Unauthorized access to answer script")
 
-    # Collect extracted answers with question labels
+    # Collect extracted answers with question labels ordered by question display order
     ext_answers = []
-    for ea in script.extracted_answers:
+    sorted_eas = sorted(
+        script.extracted_answers, 
+        key=lambda ea: getattr(ea.question, 'display_order', 0) if ea.question else 0
+    )
+    for ea in sorted_eas:
         ext_answers.append({
             "id": ea.id,
             "answer_script_id": ea.answer_script_id,

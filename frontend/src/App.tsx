@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { AuthModal } from './components/AuthModal';
+import { FreeTrialModal } from './components/FreeTrialModal';
+import { MobilePortalNotice } from './components/MobilePortalNotice';
+import { MobileEvaluatorDashboard } from './components/mobile/MobileEvaluatorDashboard';
 
 // Pages
 import { LandingPage } from './pages/LandingPage';
@@ -20,6 +24,7 @@ import { TeacherAnalyticsPage } from './pages/TeacherAnalyticsPage';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { StudentExamDetailPage } from './pages/StudentExamDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
 
 const AppContent: React.FC = () => {
   const { user, role, isAuthenticated, isLoading } = useAuth();
@@ -32,13 +37,35 @@ const AppContent: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [createExamModalOpen, setCreateExamModalOpen] = useState<boolean>(false);
+  const [featuresModalOpen, setFeaturesModalOpen] = useState<boolean>(false);
+  const [workflowModalOpen, setWorkflowModalOpen] = useState<boolean>(false);
+  const [contactModalOpen, setContactModalOpen] = useState<boolean>(false);
+  const [trialModalOpen, setTrialModalOpen] = useState<boolean>(false);
+
+  // Viewport & Mobile Evaluator Mode State
+  const [viewMode, setViewMode] = useState<'auto' | 'mobile' | 'desktop'>(() => {
+    return (localStorage.getItem('examlens_view_mode') as any) || 'auto';
+  });
+
+  const [isMobileScreen, setIsMobileScreen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Sync tab with authentication role
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated) {
         if (currentTab === 'landing') {
-          setCurrentTab(role === 'student' ? 'student-dashboard' : 'dashboard');
+          setCurrentTab(role === 'student' ? 'student-dashboard' : (role === 'admin' ? 'admin-dashboard' : 'dashboard'));
         }
       } else {
         if (currentTab !== 'landing') {
@@ -115,6 +142,12 @@ const AppContent: React.FC = () => {
           title: 'System Settings & AI Providers', 
           subtitle: 'Handwriting OCR backends, OpenAI-compatible LLM endpoints, and demo accounts' 
         };
+      case 'admin-dashboard':
+      case 'admin-messages':
+        return { 
+          title: 'Platform Master Console & Inquiries', 
+          subtitle: 'System analytics, customer contact messages, user management, and OCR infrastructure' 
+        };
       case 'student-dashboard':
       case 'student-results':
       case 'student-analytics':
@@ -145,22 +178,70 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // Check if Mobile Evaluator Dashboard should be displayed
+  const showMobileDashboard = 
+    currentTab === 'mobile-dashboard' ||
+    viewMode === 'mobile' ||
+    (viewMode === 'auto' && isMobileScreen && currentTab !== 'landing');
+
+  if (showMobileDashboard) {
+    return (
+      <MobileEvaluatorDashboard
+        onSwitchToDesktop={() => {
+          setViewMode('desktop');
+          localStorage.setItem('examlens_view_mode', 'desktop');
+          if (currentTab === 'mobile-dashboard') {
+            setCurrentTab(isAuthenticated ? 'dashboard' : 'landing');
+          }
+        }}
+        onOpenWebsite={() => {
+          setCurrentTab('landing');
+        }}
+        onNavigateTab={(tab) => {
+          if (tab === 'desktop') {
+            setViewMode('desktop');
+            localStorage.setItem('examlens_view_mode', 'desktop');
+            setCurrentTab('dashboard');
+          } else {
+            handleNavigate(tab);
+          }
+        }}
+      />
+    );
+  }
+
   // Public Landing Page
   if (currentTab === 'landing' || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
         <Navbar 
           onOpenAuth={handleOpenAuth} 
           onNavigateTab={handleNavigate} 
+          onOpenFeaturesModal={() => setFeaturesModalOpen(true)}
+          onOpenWorkflowModal={() => setWorkflowModalOpen(true)}
+          onOpenContactModal={() => setContactModalOpen(true)}
+          onOpenTrial={() => setTrialModalOpen(true)}
         />
         <LandingPage 
           onOpenAuth={handleOpenAuth} 
           onNavigateTab={handleNavigate} 
+          externalFeaturesOpen={featuresModalOpen}
+          externalWorkflowOpen={workflowModalOpen}
+          externalContactOpen={contactModalOpen}
+          onOpenTrial={() => setTrialModalOpen(true)}
         />
         <AuthModal
           isOpen={authModalOpen}
           initialMode={authModalMode}
           onClose={() => setAuthModalOpen(false)}
+        />
+        <FreeTrialModal
+          isOpen={trialModalOpen}
+          onClose={() => setTrialModalOpen(false)}
+          onActivated={() => {
+            setTrialModalOpen(false);
+            handleOpenAuth('login');
+          }}
         />
       </div>
     );
@@ -169,7 +250,8 @@ const AppContent: React.FC = () => {
   const { title, subtitle } = getPageTitle();
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden font-sans">
+    <div className="flex flex-col md:flex-row h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors">
+      <MobilePortalNotice onBackToWebsite={() => setCurrentTab('landing')} />
       {/* Left Sidebar */}
       <Sidebar 
         currentTab={currentTab} 
@@ -182,9 +264,14 @@ const AppContent: React.FC = () => {
           title={title} 
           subtitle={subtitle}
           onOpenSettings={() => handleNavigate('settings')}
+          onToggleMobileView={() => {
+            setViewMode('mobile');
+            localStorage.setItem('examlens_view_mode', 'mobile');
+            setCurrentTab('mobile-dashboard');
+          }}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 dark:bg-slate-950">
           {/* Teacher Views */}
           {currentTab === 'dashboard' && (
             <TeacherDashboard 
@@ -252,6 +339,13 @@ const AppContent: React.FC = () => {
             <SettingsPage />
           )}
 
+          {/* Administrator Master Console Views */}
+          {(currentTab === 'admin-dashboard' || currentTab === 'admin-messages') && (
+            <AdminDashboardPage 
+              onNavigateTab={handleNavigate}
+            />
+          )}
+
           {/* Student Views */}
           {(currentTab === 'student-dashboard' || 
             currentTab === 'student-results' || 
@@ -289,15 +383,26 @@ const AppContent: React.FC = () => {
         initialMode={authModalMode}
         onClose={() => setAuthModalOpen(false)}
       />
+
+      <FreeTrialModal
+        isOpen={trialModalOpen}
+        onClose={() => setTrialModalOpen(false)}
+        onActivated={() => {
+          setTrialModalOpen(false);
+          handleOpenAuth('login');
+        }}
+      />
     </div>
   );
 };
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

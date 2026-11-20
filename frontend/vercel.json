@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://examlens.onrender.com/api/$1"
+    },
+    {
+      "source": "/storage/(.*)",
+      "destination": "https://examlens.onrender.com/storage/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

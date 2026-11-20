@@ -37,7 +37,8 @@ print("Exams list:", exams_resp.status_code, f"{len(exams_resp.json())} exams")
 assert exams_resp.status_code == 200
 assert len(exams_resp.json()) >= 1
 
-exam_id = exams_resp.json()[0]["id"]
+# Select exam with scripts (e.g. Operating Systems)
+exam_id = next((e["id"] for e in exams_resp.json() if "Operating Systems" in e["title"]), exams_resp.json()[0]["id"])
 
 # Test Question rubric validation
 bad_q_resp = client.post(f"/api/exams/{exam_id}/questions", json={

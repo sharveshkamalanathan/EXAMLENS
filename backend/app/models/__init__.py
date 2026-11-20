@@ -4,6 +4,8 @@ from app.models.question import Question, RubricCriterion
 from app.models.script import UploadBatch, AnswerScript, ScriptPage, OCRResult, ExtractedAnswer, Submission
 from app.models.evaluation import Evaluation, CriterionEvaluation, TeacherReview, ResultPublication
 from app.models.audit import AuditLog
+from app.models.contact import ContactMessage
+from app.models.trial import TrialRegistration
 
 __all__ = [
     "User",
@@ -22,5 +24,7 @@ __all__ = [
     "CriterionEvaluation",
     "TeacherReview",
     "ResultPublication",
-    "AuditLog"
+    "AuditLog",
+    "ContactMessage",
+    "TrialRegistration"
 ]

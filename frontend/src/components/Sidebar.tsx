@@ -15,7 +15,9 @@ import {
   Award,
   Layers,
   ChevronRight,
-  LogOut
+  LogOut,
+  ShieldCheck,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -33,6 +35,20 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => {
   const { user, role, logout } = useAuth();
+
+  const adminNav: NavItem[] = [
+    { id: 'admin-dashboard', label: 'Admin Command', icon: ShieldCheck, badge: 'Master' },
+    { id: 'admin-messages', label: 'Inquiries Inbox', icon: Mail, badge: 'Contact' },
+    { id: 'dashboard', label: 'Faculty Overview', icon: LayoutDashboard },
+    { id: 'exams', label: 'Examinations', icon: BookOpen },
+    { id: 'upload', label: 'Upload Center', icon: UploadCloud, badge: 'Physical' },
+    { id: 'ocr-verification', label: 'OCR Verification', icon: ScanText, badge: 'Split-view' },
+    { id: 'evaluation-queue', label: 'Evaluation Queue', icon: Cpu },
+    { id: 'review-workspace', label: 'Review & Grading', icon: CheckSquare, badge: 'Authority' },
+    { id: 'publishing', label: 'Publish Results', icon: Share2 },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'settings', label: 'Provider Settings', icon: Settings },
+  ];
 
   const teacherNav: NavItem[] = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -53,21 +69,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     { id: 'student-feedback', label: 'Learning Insights', icon: Sparkles },
   ];
 
-  const navItems = role === 'student' ? studentNav : teacherNav;
+  const navItems = role === 'student' ? studentNav : (role === 'admin' ? adminNav : teacherNav);
 
   return (
     <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 border-r border-slate-800 select-none min-h-screen">
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-800 flex items-center space-x-3">
-        <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-900/40">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-900/40 shrink-0">
           <GraduationCap className="w-5 h-5" />
         </div>
-        <div>
-          <span className="font-bold text-white tracking-tight text-lg">ExamLens</span>
+        <div className="min-w-0">
+          <span className="font-bold text-white tracking-tight text-lg block">ExamLens</span>
+          {user?.institution ? (
+            <p className="text-[11px] font-semibold text-brand-400 truncate max-w-[170px]" title={user.institution}>
+              {user.institution}
+            </p>
+          ) : (
+            <p className="text-[11px] text-slate-400 truncate">Academic Assessment</p>
+          )}
           <div className="flex items-center space-x-1.5 mt-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
-              {role === 'student' ? 'Student Portal' : 'Faculty Console'}
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+              {role === 'student' ? 'Student Portal' : (role === 'admin' ? 'Master Admin' : 'Faculty Console')}
             </span>
           </div>
         </div>
@@ -76,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
       {/* Navigation List */}
       <div className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         <div className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-          {role === 'student' ? 'Academic Hub' : 'Examination Lifecycle'}
+          {role === 'student' ? 'Academic Hub' : (role === 'admin' ? 'Administration & Lifecycle' : 'Examination Lifecycle')}
         </div>
 
         {navItems.map((item) => {

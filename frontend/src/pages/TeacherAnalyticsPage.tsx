@@ -25,6 +25,8 @@ export const TeacherAnalyticsPage: React.FC<TeacherAnalyticsPageProps> = ({
   const [analytics, setAnalytics] = useState<ExamAnalytics | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
 
   useEffect(() => {
     loadExams();
@@ -66,15 +68,21 @@ export const TeacherAnalyticsPage: React.FC<TeacherAnalyticsPageProps> = ({
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!selectedExamId) return;
-    const url = api.exportExamCSV(selectedExamId);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${analytics?.exam_title || 'Exam'}_Results.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setIsExporting(true);
+    setExportNotice(null);
+    try {
+      const targetExam = exams.find(e => e.id === selectedExamId);
+      const safeTitle = (targetExam?.title || analytics?.exam_title || 'Exam').replace(/[^a-zA-Z0-9_\-]/g, '_');
+      await api.downloadExamCSV(selectedExamId, `${safeTitle}_Results.csv`);
+      setExportNotice("Results CSV exported and downloaded successfully!");
+      setTimeout(() => setExportNotice(null), 4000);
+    } catch (err: any) {
+      alert(`Export failed: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const currentExam = exams.find(e => e.id === selectedExamId);
@@ -122,13 +130,30 @@ export const TeacherAnalyticsPage: React.FC<TeacherAnalyticsPageProps> = ({
 
           <button
             onClick={handleExportCSV}
-            disabled={!analytics || analytics.evaluated_students === 0}
+            disabled={!selectedExamId || isExporting}
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition shadow-sm"
+            title="Download comprehensive examination grade sheet as CSV"
           >
-            <Download className="w-4 h-4" /> Export CSV
+            <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} />
+            {isExporting ? 'Exporting...' : 'Export CSV'}
           </button>
         </div>
       </div>
+
+      {exportNotice && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-4 py-3 rounded-xl flex items-center justify-between shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="font-medium">{exportNotice}</span>
+          </div>
+          <button 
+            onClick={() => setExportNotice(null)} 
+            className="text-emerald-700 hover:text-emerald-900 font-bold text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">

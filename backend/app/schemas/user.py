@@ -28,3 +28,11 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+class PasswordResetRequest(BaseModel):
+    email: str
+    new_password: str
+
+class PasswordResetResponse(BaseModel):
+    success: bool
+    message: str

@@ -12,11 +12,16 @@ from app.models.script import AnswerScript, Submission
 from app.models.question import Question
 from app.models.evaluation import Evaluation, CriterionEvaluation
 from app.schemas.evaluation import EvaluationDetailResponse, ScriptEvaluationSummary
+from app.schemas.script import ScriptPageResponse
 from app.services.ai.service import get_ai_evaluator
 
 router = APIRouter(tags=["AI Evaluation Engine"])
 
 def _evaluate_single_submission(sub: Submission, db: Session) -> Evaluation:
+    # Clear prior evaluations for this submission to avoid duplicate accumulation
+    db.query(Evaluation).filter(Evaluation.submission_id == sub.id).delete()
+    db.commit()
+
     evaluator = get_ai_evaluator()
     start_time = time.time()
     
@@ -104,30 +109,49 @@ def evaluate_entire_script(
     script.processing_status = "evaluating"
     db.commit()
 
-    # If no submissions exist, promote verified extracted answers
-    if not script.submissions and script.extracted_answers:
-        for ea in script.extracted_answers:
-            text = ea.corrected_text if ea.corrected_text is not None else ea.original_ocr_text
-            db.add(Submission(
-                answer_script_id=script.id,
-                question_id=ea.question_id,
-                student_answer=text,
-                verification_status="verified"
-            ))
+    # Synchronize and deduplicate submissions from extracted answers
+    if script.extracted_answers:
+        existing_subs = {s.question_id: s for s in script.submissions if s.question_id}
+        # Delete any duplicate submissions with the same question_id
+        seen_q = set()
+        for s in list(script.submissions):
+            if s.question_id in seen_q:
+                db.delete(s)
+            else:
+                seen_q.add(s.question_id)
         db.commit()
         db.refresh(script)
 
-    total_score = 0.0
+        # Create or update 1:1 submission for each extracted answer
+        for ea in script.extracted_answers:
+            text = ea.corrected_text if ea.corrected_text is not None else ea.original_ocr_text
+            sub = existing_subs.get(ea.question_id)
+            if sub:
+                sub.student_answer = text
+                sub.verification_status = "verified"
+            else:
+                db.add(Submission(
+                    answer_script_id=script.id,
+                    question_id=ea.question_id,
+                    student_answer=text,
+                    verification_status="verified"
+                ))
+        db.commit()
+        db.refresh(script)
+
+    question_scores = {}
     needs_review = False
 
     for sub in script.submissions:
+        if not sub.question_id or sub.question_id in question_scores:
+            continue
         # Evaluate each submission
         ev = _evaluate_single_submission(sub, db)
-        total_score += ev.effective_marks
+        question_scores[sub.question_id] = ev.effective_marks
         if ev.requires_human_review:
             needs_review = True
 
-    script.total_score = round(total_score, 2)
+    script.total_score = round(sum(question_scores.values()), 2)
     script.processing_status = "review_required" if needs_review else "evaluation_completed"
     db.commit()
     db.refresh(script)
@@ -181,11 +205,25 @@ def get_script_evaluation(
             raise HTTPException(status_code=403, detail="Unauthorized")
 
     eval_items = []
-    for sub in script.submissions:
+    seen_q = set()
+    sorted_subs = sorted(
+        script.submissions,
+        key=lambda s: getattr(s.question, 'display_order', 0) if s.question else 0
+    )
+    for sub in sorted_subs:
+        if not sub.question_id or sub.question_id in seen_q:
+            continue
         if sub.evaluations:
-            eval_items.append(_build_eval_response(sub.evaluations[-1]))
+            latest_eval = sorted(sub.evaluations, key=lambda e: e.evaluated_at or datetime.min)[-1]
+            eval_items.append(_build_eval_response(latest_eval))
+            seen_q.add(sub.question_id)
 
-    tot_score = script.total_score if script.total_score is not None else 0.0
+    # Ensure total_score and percentage strictly match the live sum of all question effective marks
+    live_tot = round(sum(item.effective_marks for item in eval_items), 2)
+    script.total_score = live_tot
+    db.commit()
+
+    tot_score = live_tot
     max_tot = script.exam.total_marks or 50.0
     pct = round((tot_score / max_tot) * 100, 1) if max_tot > 0 else 0.0
 
@@ -200,6 +238,7 @@ def get_script_evaluation(
         percentage=pct,
         is_approved=script.is_approved,
         status=script.processing_status,
+        pages=[ScriptPageResponse.model_validate(p) for p in script.pages],
         evaluations=eval_items
     )
 

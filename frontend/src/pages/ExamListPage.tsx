@@ -11,7 +11,8 @@ import {
   Share2, 
   ExternalLink,
   ChevronRight,
-  ListOrdered
+  ListOrdered,
+  Download
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Exam } from '../types';
@@ -205,6 +206,20 @@ export const ExamListPage: React.FC<ExamListPageProps> = ({ onNavigateTab, onOpe
                             className="p-1.5 bg-slate-100 hover:bg-brand-50 hover:text-brand-600 rounded-lg text-slate-600 transition-colors"
                           >
                             <BarChart3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const safeTitle = exam.title.replace(/[^a-zA-Z0-9_\-]/g, '_');
+                                await api.downloadExamCSV(exam.id, `${safeTitle}_Results.csv`);
+                              } catch (err: any) {
+                                alert(`Export failed: ${err.message}`);
+                              }
+                            }}
+                            title="Export Results CSV"
+                            className="p-1.5 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg text-slate-600 transition-colors"
+                          >
+                            <Download className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(exam.id, exam.title)}

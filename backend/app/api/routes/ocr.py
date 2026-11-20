@@ -16,6 +16,7 @@ from app.schemas.script import (
 )
 from app.services.ocr.service import process_page_ocr
 from app.services.answer_segmentation import segment_text_by_questions
+from app.services.image_preprocessing import convert_pdf_to_images, preprocess_page_image
 
 router = APIRouter(tags=["OCR & Handwriting Recognition"])
 
@@ -34,16 +35,58 @@ def run_script_ocr(
     script.processing_status = "ocr_processing"
     db.commit()
 
+    # If pages are missing or incomplete, auto-regenerate from the stored file
+    if (not script.pages or len(script.pages) == 0) and script.stored_file_path:
+        clean_stored = script.stored_file_path.replace("/storage/", "").lstrip("/\\")
+        stored_disk = os.path.join(settings.STORAGE_DIR, clean_stored)
+        if os.path.exists(stored_disk):
+            pages_output_dir = os.path.join(settings.PROCESSED_DIR, script.id)
+            page_paths = convert_pdf_to_images(stored_disk, pages_output_dir)
+            script.page_count = len(page_paths)
+            for idx, p_path in enumerate(page_paths):
+                enhanced_path = os.path.join(pages_output_dir, f"enhanced_{idx + 1}.jpg")
+                preprocess_page_image(p_path, enhanced_path)
+                sp = ScriptPage(
+                    answer_script_id=script.id,
+                    page_number=idx + 1,
+                    original_image_path=f"/storage/processed/{script.id}/page_{idx + 1}.jpg",
+                    processed_image_path=f"/storage/processed/{script.id}/enhanced_{idx + 1}.jpg",
+                    preprocessing_status="enhanced"
+                )
+                db.add(sp)
+            db.commit()
+            db.refresh(script)
+
     all_page_texts = []
     has_low_conf = False
+
+    # Clear prior OCRResult records for these pages to prevent duplication
+    for page in script.pages:
+        db.query(OCRResult).filter(OCRResult.script_page_id == page.id).delete()
+    db.commit()
 
     # Process each page
     for page in script.pages:
         # Determine image path on disk
-        img_name = os.path.basename(page.processed_image_path or page.original_image_path)
-        img_disk_path = os.path.join(settings.PROCESSED_DIR, script.id, img_name)
-        if not os.path.exists(img_disk_path):
-            img_disk_path = os.path.join(settings.PROCESSED_DIR, img_name)
+        target_path = page.processed_image_path or page.original_image_path or ""
+        clean_rel = target_path.replace("/storage/", "").lstrip("/\\")
+        
+        candidates = [
+            os.path.join(settings.STORAGE_DIR, clean_rel),
+            os.path.join(settings.PROCESSED_DIR, script.id, os.path.basename(target_path)),
+            os.path.join(settings.PROCESSED_DIR, os.path.basename(target_path)),
+            os.path.join(settings.PROCESSED_DIR, script.id, f"page_{page.page_number}.jpg"),
+            os.path.join(settings.PROCESSED_DIR, f"scan_{script.student_roll_no}.jpg")
+        ]
+        
+        img_disk_path = None
+        for cand in candidates:
+            if os.path.exists(cand) and os.path.getsize(cand) > 0:
+                img_disk_path = cand
+                break
+                
+        if not img_disk_path:
+            img_disk_path = os.path.join(settings.PROCESSED_DIR, script.id, f"page_{page.page_number}.jpg")
 
         # Run OCR
         ocr_data = process_page_ocr(img_disk_path, page.page_number)

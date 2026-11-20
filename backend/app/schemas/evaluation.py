@@ -1,6 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
+from app.schemas.script import ScriptPageResponse
 
 class CriterionEvaluationSchema(BaseModel):
     criterion_name: str
@@ -102,4 +103,5 @@ class ScriptEvaluationSummary(BaseModel):
     percentage: float
     is_approved: bool
     status: str
+    pages: List[ScriptPageResponse] = []
     evaluations: List[EvaluationDetailResponse] = []

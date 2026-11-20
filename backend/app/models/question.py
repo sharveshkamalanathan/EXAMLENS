@@ -39,6 +39,10 @@ class Question(Base):
         except Exception:
             return []
 
+    @important_concepts.setter
+    def important_concepts(self, val):
+        self.important_concepts_json = json.dumps(val or [])
+
     @property
     def alternative_explanations(self):
         try:
@@ -75,3 +79,7 @@ class RubricCriterion(Base):
             return json.loads(self.expected_concepts_json or "[]")
         except Exception:
             return []
+
+    @expected_concepts.setter
+    def expected_concepts(self, val):
+        self.expected_concepts_json = json.dumps(val or [])

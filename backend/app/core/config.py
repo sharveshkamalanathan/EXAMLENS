@@ -7,6 +7,8 @@ STORAGE_DIR = BASE_DIR.parent / "storage"
 UPLOAD_DIR = STORAGE_DIR / "uploads"
 PROCESSED_DIR = STORAGE_DIR / "processed"
 
+DB_PATH = BASE_DIR / "examlens.db"
+
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -18,8 +20,8 @@ class Settings(BaseModel):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./examlens.db")
+    # Database (anchored to backend directory so working directory differences never break connection)
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH.as_posix()}")
     
     # File Storage
     STORAGE_DIR: str = str(STORAGE_DIR)
@@ -28,8 +30,8 @@ class Settings(BaseModel):
     MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "25"))
     MAX_PDF_PAGES: int = int(os.getenv("MAX_PDF_PAGES", "20"))
     
-    # OCR Provider: "mock", "azure"
-    OCR_PROVIDER: str = os.getenv("OCR_PROVIDER", "mock")
+    # OCR Provider: "auto", "rapidocr", "azure", "mock"
+    OCR_PROVIDER: str = os.getenv("OCR_PROVIDER", "auto")
     AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: str = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT", "")
     AZURE_DOCUMENT_INTELLIGENCE_KEY: str = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY", "")
     

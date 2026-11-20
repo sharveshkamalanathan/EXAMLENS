@@ -28,7 +28,14 @@ class Evaluation(Base):
     @property
     def latest_review(self):
         if self.reviews:
-            return self.reviews[-1]
+            def _dt_key(dt):
+                if not dt:
+                    return 0.0
+                if dt.tzinfo is not None:
+                    return dt.timestamp()
+                return dt.replace(tzinfo=timezone.utc).timestamp()
+            sorted_revs = sorted(self.reviews, key=lambda r: _dt_key(r.reviewed_at))
+            return sorted_revs[-1]
         return None
 
     @property

@@ -157,3 +157,6 @@ $RECYCLE.BIN/
 # 8. Local Tooling & Binaries
 # ------------------------------------------------------------------------------
 node-bin/
+bin/
+backups/
+backend/pytest.ini

@@ -8,8 +8,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithToken: (token: string, userData: User) => void;
   register: (data: any) => Promise<void>;
-  loginAsDemo: (demoRole: 'teacher' | 'student-1' | 'student-2' | 'admin') => Promise<void>;
+  loginAsDemo: (demoRole: 'teacher' | 'student-1' | 'student-2') => Promise<void>;
   logout: () => void;
 }
 
@@ -47,6 +48,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithToken = (token: string, userData: User) => {
+    localStorage.setItem('examlens_token', token);
+    setUser(userData);
+  };
+
   const register = async (data: any) => {
     setIsLoading(true);
     try {
@@ -58,11 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginAsDemo = async (demoRole: 'teacher' | 'student-1' | 'student-2' | 'admin') => {
+  const loginAsDemo = async (demoRole: 'teacher' | 'student-1' | 'student-2') => {
     let email = "teacher@examlens.edu";
     if (demoRole === 'student-1') email = "stu101@examlens.edu";
     if (demoRole === 'student-2') email = "stu102@examlens.edu";
-    if (demoRole === 'admin') email = "admin@examlens.edu";
 
     await login(email, "examlens123");
   };
@@ -80,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user,
         isLoading,
         login,
+        loginWithToken,
         register,
         loginAsDemo,
         logout,

@@ -55,17 +55,19 @@ echo.
 echo ===============================================================================
 echo                     EXAMLENS IS NOW RUNNING!
 echo ===============================================================================
-echo   * Web Application:     http://localhost:5173
-echo   * Backend REST API:    http://127.0.0.1:8000
-echo   * API Documentation:   http://127.0.0.1:8000/docs
+echo   * Computer / Desktop:     http://localhost:5173
+echo   * Mobile Phone (Same Wi-Fi): http://192.168.1.5:5173
+echo   * Worldwide Public Link:  Run share_online.bat
+echo   * Backend REST API:       http://127.0.0.1:8000
+echo   * API Documentation:      http://127.0.0.1:8000/docs
 echo.
 echo -------------------------------------------------------------------------------
-echo PRE-SEEDED TEST ACCOUNTS (Password for all: examlens123):
-echo   * Faculty/Teacher:     teacher@examlens.edu  (Prof. Rajesh Sharma)
-echo   * Student 1 (Top):     stu101@examlens.edu   (Aarav Sharma - STU-1024)
-echo   * Student 2 (Pass):    stu102@examlens.edu   (Priya Nair - STU-1025)
-echo   * Student 3 (Remedial): stu103@examlens.edu  (Rohan Mehta - STU-1026)
-echo   * Administrator:       admin@examlens.edu    (Exam Admin NIT)
+echo PRE-SEEDED TEST ACCOUNTS:
+echo   * Lead Administrator:  sharveshofficialmicro@gmail.com (Password: 94865)
+echo   * Faculty/Teacher:     teacher@examlens.edu  (Password: examlens123 - Prof. Rajesh Sharma)
+echo   * Student 1 (Top):     stu101@examlens.edu   (Password: examlens123 - Aarav Sharma - STU-1024)
+echo   * Student 2 (Pass):    stu102@examlens.edu   (Password: examlens123 - Priya Nair - STU-1025)
+echo   * Student 3 (Remedial): stu103@examlens.edu  (Password: examlens123 - Rohan Mehta - STU-1026)
 echo.
 echo TIP: You can switch roles instantly with 1 click using the 'Switch Role'
 echo      dropdown located at the top-right of the dashboard header.

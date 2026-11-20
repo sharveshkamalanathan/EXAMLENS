@@ -1,0 +1,12 @@
+.git
+.gitignore
+node_modules
+frontend/node_modules
+backups/
+bin/
+*.bat
+.pytest_cache/
+__pycache__/
+*.pyc
+storage/uploads/*
+storage/processed/*

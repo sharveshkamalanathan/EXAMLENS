@@ -47,6 +47,8 @@ FAIRNESS & EVALUATION RULES:
 4. Cite actual verbatim evidence from the student's answer whenever awarding marks. Do NOT fabricate evidence.
 5. Identify correct concepts, missing concepts, strengths, weaknesses, and improvement suggestions.
 6. Provide an honest confidence score (between 0.0 and 1.0). If the answer is ambiguous or borderline, set requires_human_review = true with an explicit review_reason.
+7. TOPIC RELEVANCE: If the answer is blank, marked [Not Attempted / Blank], or completely irrelevant to this question (e.g. addresses a completely different question or unrelated topic), award 0.0 marks for all criteria and set requires_human_review = true with review_reason explaining the answer is irrelevant.
+8. SEMANTIC UNDERSTANDING OVER VERBATIM MATCHING: Under no circumstances should you demand that the student's answer match the reference answer word-for-word. Students legitimately express correct academic principles through their own phrasing, personal vocabulary, bullet points, and practical examples. If the student demonstrates solid conceptual and technical comprehension of the question, AWARD FULL OR GENEROUS PROPORTIONATE MARKS. Focus on substantive technical validity and relevance, never on mechanical rote repetition.
 
 QUESTION DETAILS:
 Question Number: {question.question_number}

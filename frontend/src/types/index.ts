@@ -172,6 +172,7 @@ export interface ScriptEvaluationSummary {
   percentage: number;
   is_approved: boolean;
   status: string;
+  pages?: ScriptPage[];
   evaluations: EvaluationDetail[];
 }
 

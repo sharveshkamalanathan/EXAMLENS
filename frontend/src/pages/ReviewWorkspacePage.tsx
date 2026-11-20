@@ -190,7 +190,11 @@ export const ReviewWorkspacePage: React.FC<ReviewWorkspacePageProps> = ({
   };
 
   // Image path for script
-  const pageImage = `/storage/processed/scan_${scriptEval?.student_roll_no || 'STU-1024'}.jpg`;
+  const totalPages = scriptEval?.pages?.length || 1;
+  const currentPage = scriptEval?.pages?.[activePage - 1];
+  const pageImage = currentPage?.processed_image_path || 
+                    currentPage?.original_image_path || 
+                    `/storage/processed/scan_${scriptEval?.student_roll_no || 'STU-1024'}.jpg`;
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden bg-slate-100">
@@ -261,7 +265,24 @@ export const ReviewWorkspacePage: React.FC<ReviewWorkspacePageProps> = ({
         <div className="bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-hidden relative select-none">
           {/* Zoom & Page Floating Controls */}
           <div className="absolute top-4 left-4 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-700 text-white px-3 py-1.5 rounded-xl flex items-center space-x-3 text-xs shadow-lg">
-            <span className="font-semibold text-slate-300">Page {activePage}</span>
+            <span className="font-semibold text-slate-300">Page {activePage} of {totalPages}</span>
+            <div className="h-4 w-px bg-slate-700"></div>
+            <button 
+              disabled={activePage <= 1}
+              onClick={() => setActivePage(prev => Math.max(1, prev - 1))}
+              className="p-1 hover:text-brand-400 disabled:opacity-30"
+              title="Previous Page"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </button>
+            <button 
+              disabled={activePage >= totalPages}
+              onClick={() => setActivePage(prev => Math.min(totalPages, prev + 1))}
+              className="p-1 hover:text-brand-400 disabled:opacity-30"
+              title="Next Page"
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
             <div className="h-4 w-px bg-slate-700"></div>
             <button 
               onClick={() => setZoomLevel(prev => Math.max(50, prev - 15))}
@@ -445,8 +466,11 @@ export const ReviewWorkspacePage: React.FC<ReviewWorkspacePageProps> = ({
                       step="0.25"
                       min={0}
                       max={currentEval.maximum_marks}
-                      value={overrideMarks}
-                      onChange={e => setOverrideMarks(parseFloat(e.target.value))}
+                      value={isNaN(overrideMarks) ? '' : overrideMarks}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        setOverrideMarks(isNaN(val) ? 0 : val);
+                      }}
                       className="w-full px-3 py-2 border border-brand-300 rounded-lg bg-white font-bold text-base text-slate-900 focus:ring-2 focus:ring-brand-500"
                     />
                   </div>

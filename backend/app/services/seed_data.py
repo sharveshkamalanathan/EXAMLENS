@@ -11,6 +11,7 @@ from app.models.question import Question, RubricCriterion
 from app.models.script import UploadBatch, AnswerScript, ScriptPage, OCRResult, ExtractedAnswer, Submission
 from app.models.evaluation import Evaluation, CriterionEvaluation, TeacherReview, ResultPublication
 from app.models.audit import AuditLog
+from app.models.contact import ContactMessage
 
 def generate_handwritten_sheet_image(
     output_path: str,
@@ -87,6 +88,25 @@ def generate_handwritten_sheet_image(
     return output_path
 
 def seed_database(db: Session):
+    # Always ensure Lead Administrator account is active with correct credentials
+    admin_lead = db.query(User).filter(User.email == "sharveshofficialmicro@gmail.com").first()
+    if admin_lead:
+        admin_lead.hashed_password = get_password_hash("94865")
+        admin_lead.role = UserRole.ADMIN
+        admin_lead.full_name = "Sharveshwaran (Lead Administrator)"
+        db.commit()
+    else:
+        admin_lead = User(
+            full_name="Sharveshwaran (Lead Administrator)",
+            email="sharveshofficialmicro@gmail.com",
+            hashed_password=get_password_hash("94865"),
+            role=UserRole.ADMIN,
+            institution="National Institute of Technology",
+            department="Central Examination Administration"
+        )
+        db.add(admin_lead)
+        db.commit()
+
     # Check if already seeded
     existing_teacher = db.query(User).filter(User.email == "teacher@examlens.edu").first()
     if existing_teacher:
@@ -636,6 +656,37 @@ def seed_database(db: Session):
         })
     )
     db.add(pub)
+
+    # Seed sample contact inquiries for admin dashboard inbox
+    sample_msgs = [
+        ContactMessage(
+            name="Dr. Arvind Swaminathan",
+            email="arvind.swami@iitm.ac.in",
+            subject="Institution-wide Deployment & OCR Benchmark Inquiries",
+            message="Hello Sharveshwaran, our department is interested in adopting ExamLens for semester examinations across 1,200 students. Could we schedule a technical walkthrough of your handwriting segmentation and rubric engine?",
+            status="unread",
+            created_at=datetime.now(timezone.utc) - timedelta(hours=3)
+        ),
+        ContactMessage(
+            name="Prof. Kavitha Raman",
+            email="kavitha.r@annauniv.edu",
+            subject="Word document (.docx) submission compatibility",
+            message="Hi ExamLens team, great job on the interactive script preview. We often receive supplementary assignments in DOCX format alongside scanned papers. Excited to test the new DOCX upload feature!",
+            status="unread",
+            created_at=datetime.now(timezone.utc) - timedelta(hours=8)
+        ),
+        ContactMessage(
+            name="Siddharth Rao",
+            email="siddharth.rao@student.nit.edu",
+            subject="Query regarding partial marking for diagrammatic questions",
+            message="Dear Team, I noticed my evaluation cited specific rubric lines for Question 3. The feedback was very fair and helped me understand where I lost half a mark. Thank you!",
+            status="read",
+            created_at=datetime.now(timezone.utc) - timedelta(days=1)
+        )
+    ]
+    for msg in sample_msgs:
+        db.add(msg)
+
     db.commit()
 
     print("Demo database successfully seeded!")

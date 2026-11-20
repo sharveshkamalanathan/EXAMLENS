@@ -20,8 +20,9 @@ def record_teacher_override(
     previous_review = evaluation.latest_review
     previous_marks = previous_review.final_marks if previous_review else evaluation.original_ai_marks
 
-    # Create new review record without altering original_ai_marks
+    # Create new review record linked to evaluation
     review = TeacherReview(
+        evaluation=evaluation,
         evaluation_id=evaluation.id,
         teacher_id=teacher_id,
         original_ai_marks=evaluation.original_ai_marks,
@@ -32,30 +33,36 @@ def record_teacher_override(
         reviewed_at=datetime.now(timezone.utc)
     )
     db.add(review)
+    db.flush()
 
     # Update evaluation status
     evaluation.status = "needs_review" if review_data.status == "rejected" else "completed"
     evaluation.requires_human_review = False
 
-    # Recalculate script total score
+    # Recalculate script total score strictly per distinct exam question
+    # Prevents any double-counting or adding teacher marks on top of old AI marks
     submission = evaluation.submission
-    if submission:
+    if submission and submission.script:
         script = submission.script
-        if script:
-            # Sum up effective scores for all submissions of this script
-            total = 0.0
-            all_approved = True
-            for sub in script.submissions:
-                if sub.evaluations:
-                    latest_eval = sub.evaluations[-1]
-                    total += latest_eval.effective_marks
-                else:
+        question_marks = {}
+        all_approved = True
+
+        for sub in script.submissions:
+            if not sub.question_id:
+                continue
+            if sub.evaluations:
+                latest_eval = sorted(sub.evaluations, key=lambda e: e.evaluated_at or datetime.min)[-1]
+                question_marks[sub.question_id] = latest_eval.effective_marks
+                if latest_eval.status != "completed" and not latest_eval.latest_review:
                     all_approved = False
-            
-            script.total_score = round(total, 2)
-            script.is_approved = all_approved
-            if all_approved and script.processing_status != "published":
-                script.processing_status = "teacher_approved"
+            else:
+                question_marks[sub.question_id] = 0.0
+                all_approved = False
+
+        script.total_score = round(sum(question_marks.values()), 2)
+        script.is_approved = all_approved
+        if all_approved and script.processing_status != "published":
+            script.processing_status = "teacher_approved"
 
     # Log to audit trail
     audit = AuditLog(

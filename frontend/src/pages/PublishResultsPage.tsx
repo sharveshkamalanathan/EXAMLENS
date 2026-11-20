@@ -27,6 +27,7 @@ export const PublishResultsPage: React.FC<PublishResultsPageProps> = ({ initialE
   const [loading, setLoading] = useState<boolean>(true);
   const [publishing, setPublishing] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
 
   useEffect(() => {
     const init = async () => {
@@ -94,8 +95,21 @@ export const PublishResultsPage: React.FC<PublishResultsPageProps> = ({ initialE
     }
   };
 
-  const handleDownloadCSV = () => {
-    window.open(api.exportExamCSV(selectedExamId), '_blank');
+  const handleDownloadCSV = async () => {
+    if (!selectedExamId) return;
+    setIsExporting(true);
+    setStatusMessage(null);
+    try {
+      const targetExam = exams.find(e => e.id === selectedExamId);
+      const safeTitle = (targetExam?.title || 'Exam').replace(/[^a-zA-Z0-9_\-]/g, '_');
+      await api.downloadExamCSV(selectedExamId, `${safeTitle}_Results.csv`);
+      setStatusMessage("Results CSV exported and downloaded successfully!");
+      setTimeout(() => setStatusMessage(null), 4000);
+    } catch (err: any) {
+      alert(`Export failed: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const activeExam = exams.find(e => e.id === selectedExamId);
@@ -156,10 +170,12 @@ export const PublishResultsPage: React.FC<PublishResultsPageProps> = ({ initialE
         <div className="flex items-center space-x-2.5">
           <button
             onClick={handleDownloadCSV}
-            className="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl shadow-sm flex items-center space-x-1.5"
+            disabled={!selectedExamId || isExporting}
+            className="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-700 font-semibold text-xs rounded-xl shadow-sm flex items-center space-x-1.5"
+            title="Download full examination results as a CSV spreadsheet"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>Export CSV</span>
+            <FileSpreadsheet className={`w-4 h-4 text-emerald-600 ${isExporting ? 'animate-bounce' : ''}`} />
+            <span>{isExporting ? 'Exporting...' : 'Export CSV'}</span>
           </button>
 
           {activeExam?.is_published ? (

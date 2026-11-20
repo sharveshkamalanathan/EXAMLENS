@@ -22,7 +22,10 @@ from app.api.routes import (
     results,
     analytics,
     batches,
-    system
+    system,
+    contact,
+    admin,
+    trial
 )
 
 @asynccontextmanager
@@ -54,6 +57,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.responses import FileResponse
+
 # Static file serving for scans and documents
 if os.path.exists(settings.STORAGE_DIR):
     app.mount("/storage", StaticFiles(directory=settings.STORAGE_DIR), name="storage")
@@ -70,16 +75,47 @@ app.include_router(results.router, prefix=settings.API_V1_STR)
 app.include_router(analytics.router, prefix=settings.API_V1_STR)
 app.include_router(batches.router, prefix=settings.API_V1_STR)
 app.include_router(system.router, prefix=settings.API_V1_STR)
+app.include_router(contact.router, prefix=settings.API_V1_STR)
+app.include_router(admin.router, prefix=settings.API_V1_STR)
+app.include_router(trial.router, prefix=settings.API_V1_STR)
 
-@app.get("/")
-def root():
-    return {
-        "app": settings.PROJECT_NAME,
-        "tagline": settings.PROJECT_TAGLINE,
-        "docs_url": "/docs",
-        "api_v1": settings.API_V1_STR,
-        "status": "healthy"
-    }
+# Production frontend SPA integration (serve built Vite app if dist exists)
+dist_candidates = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")),
+    os.path.abspath("frontend/dist"),
+    os.path.abspath("../frontend/dist"),
+]
+dist_dir = next((d for d in dist_candidates if os.path.isdir(d) and os.path.isfile(os.path.join(d, "index.html"))), None)
+
+if dist_dir:
+    assets_dir = os.path.join(dist_dir, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="frontend-assets")
+
+    @app.api_route("/", methods=["GET", "HEAD"])
+    async def serve_root():
+        return FileResponse(os.path.join(dist_dir, "index.html"))
+
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi.json") or full_path.startswith("storage"):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Not found")
+        file_path = os.path.join(dist_dir, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(dist_dir, "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {
+            "app": settings.PROJECT_NAME,
+            "tagline": settings.PROJECT_TAGLINE,
+            "docs_url": "/docs",
+            "api_v1": settings.API_V1_STR,
+            "status": "healthy"
+        }
 
 if __name__ == "__main__":
     import uvicorn

@@ -9,9 +9,11 @@ import {
   ArrowRight,
   Layers,
   Sparkles,
-  Users
+  Users,
+  RefreshCw
 } from 'lucide-react';
 import { api } from '../services/api';
+import { soundEffects } from '../utils/audioEffects';
 import { Exam, AnswerScript } from '../types';
 
 interface UploadCenterPageProps {
@@ -33,6 +35,7 @@ export const UploadCenterPage: React.FC<UploadCenterPageProps> = ({ initialExamI
   const [batchName, setBatchName] = useState('Batch B — Classroom Answer Scripts');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [processingScriptId, setProcessingScriptId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadExams = async () => {
@@ -109,12 +112,21 @@ export const UploadCenterPage: React.FC<UploadCenterPageProps> = ({ initialExamI
   };
 
   const handleTriggerOCR = async (scriptId: string) => {
+    setProcessingScriptId(scriptId);
+    soundEffects.playOcrScanSound();
+    const interval = setInterval(() => soundEffects.playOcrScanSound(), 2600);
     try {
       await api.processOCR(scriptId);
-      loadScripts(selectedExamId);
+      clearInterval(interval);
+      soundEffects.playOcrSuccessSound();
+      await loadScripts(selectedExamId);
       onNavigateTab('ocr-verification', { scriptId });
     } catch (err: any) {
+      clearInterval(interval);
       alert(`OCR failed: ${err.message}`);
+    } finally {
+      clearInterval(interval);
+      setProcessingScriptId(null);
     }
   };
 
@@ -180,12 +192,12 @@ export const UploadCenterPage: React.FC<UploadCenterPageProps> = ({ initialExamI
                 {uploadMode === 'single' ? 'Drag & drop single answer sheet' : 'Drag & drop multiple student scripts'}
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
-                Supports PDF, JPG, PNG (Max 25MB, up to 20 pages)
+                Supports PDF, Word (DOCX/DOC), JPG, PNG (Max 25MB, up to 20 pages)
               </p>
               <input
                 type="file"
                 multiple={uploadMode === 'batch'}
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".pdf,.jpg,.jpeg,.png,.docx,.doc"
                 onChange={handleFileChange}
                 className="mt-3 text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer"
               />
@@ -308,10 +320,11 @@ export const UploadCenterPage: React.FC<UploadCenterPageProps> = ({ initialExamI
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => handleTriggerOCR(s.id)}
-                            className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded font-semibold text-[11px] flex items-center space-x-1"
+                            disabled={processingScriptId === s.id}
+                            className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 text-amber-800 rounded font-semibold text-[11px] flex items-center space-x-1 transition-colors"
                           >
-                            <ScanText className="w-3 h-3" />
-                            <span>Run OCR</span>
+                            <RefreshCw className={`w-3 h-3 ${processingScriptId === s.id ? 'animate-spin text-amber-600' : ''}`} />
+                            <span>{processingScriptId === s.id ? 'Scanning...' : 'Run OCR'}</span>
                           </button>
                           <button
                             onClick={() => onNavigateTab('ocr-verification', { scriptId: s.id })}
