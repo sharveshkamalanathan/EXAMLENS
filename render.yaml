@@ -1,11 +1,15 @@
 services:
   - type: web
     name: examlens
-    runtime: docker
+    runtime: python
     plan: free
     region: oregon
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /api/system/status
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: JWT_SECRET
         generateValue: true
       - key: AI_PROVIDER
