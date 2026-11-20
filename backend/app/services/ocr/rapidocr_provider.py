@@ -1,9 +1,10 @@
+from __future__ import annotations
 import time
 import os
 import cv2
 import numpy as np
 from PIL import Image
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from app.services.ocr.base import BaseOCRProvider, OCRResultData, OCRLine, OCRWord
 
 class RapidOCRProvider(BaseOCRProvider):
