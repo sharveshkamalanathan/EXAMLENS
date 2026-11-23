@@ -15,6 +15,7 @@ SENDER_EMAIL = os.getenv("SENDER_EMAIL", "examlenses@gmail.com")
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", os.getenv("GMAIL_APP_PASSWORD", ""))
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://examlens-m4ji.onrender.com")
 
 def send_otp_email(recipient_email: str, recipient_name: str, otp_code: str) -> dict:
     """
@@ -222,7 +223,7 @@ def send_login_greetings_email(
       </div>
 
       <div style="text-align: center; margin: 28px 0 10px;">
-        <a href="http://localhost:5173" class="btn">Launch Your Workspace →</a>
+        <a href="{FRONTEND_URL}" class="btn">Launch Your Workspace →</a>
       </div>
 
       <div class="security-note">
@@ -243,7 +244,7 @@ def send_login_greetings_email(
     msg["To"] = clean_recipient
 
     part_text = MIMEText(
-        f"Greetings, {clean_name}!\n\nYou have successfully signed in to ExamLens for {clean_inst}.\nYour workspace is now active at http://localhost:5173.\n\nSent from {SENDER_EMAIL}",
+        f"Greetings, {clean_name}!\n\nYou have successfully signed in to ExamLens for {clean_inst}.\nYour workspace is now active at {FRONTEND_URL}.\n\nSent from {SENDER_EMAIL}",
         "plain"
     )
     part_html = MIMEText(html_content, "html")
