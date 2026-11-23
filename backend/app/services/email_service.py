@@ -20,6 +20,50 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or "fxjyxvrinycoalby"
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://examlens-m4ji.onrender.com")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+BREVO_API_KEY = os.getenv("BREVO_API_KEY") or os.getenv("SENDINBLUE_API_KEY", "")
+
+def _dispatch_brevo_https(recipient: str, subject: str, html_content: str, text_content: str) -> tuple[bool, str]:
+    """
+    Sends email via Brevo's (Sendinblue) REST API over HTTPS (Port 443).
+    Allows sending to ANY recipient email without requiring a custom domain.
+    100% free (300 emails/day).
+    """
+    api_key = os.getenv("BREVO_API_KEY") or os.getenv("SENDINBLUE_API_KEY") or BREVO_API_KEY
+    if not api_key:
+        return False, "BREVO_API_KEY not configured"
+
+    sender_email = os.getenv("BREVO_SENDER") or os.getenv("SENDER_EMAIL") or "examlenses@gmail.com"
+    payload = {
+        "sender": {"name": "ExamLens", "email": sender_email},
+        "to": [{"email": recipient}],
+        "subject": subject,
+        "htmlContent": html_content,
+        "textContent": text_content
+    }
+
+    try:
+        req = urllib.request.Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "api-key": api_key.strip(),
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "ExamLens/1.0"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return True, f"Delivered via Brevo HTTPS (ID: {data.get('messageId', 'ok')})"
+    except urllib.error.HTTPError as he:
+        try:
+            err_data = json.loads(he.read().decode("utf-8"))
+            err_msg = err_data.get("message", str(he))
+        except Exception:
+            err_msg = str(he)
+        return False, f"Brevo HTTPS ({err_msg})"
+    except Exception as e:
+        return False, f"Brevo HTTPS error: {str(e)}"
 
 def _dispatch_resend_https(recipient: str, subject: str, html_content: str, text_content: str) -> tuple[bool, str]:
     """
@@ -71,26 +115,31 @@ def _dispatch_email(
 ) -> tuple[bool, str]:
     """
     Unified email dispatcher:
-    1. Checks for HTTPS Email API (Resend over Port 443) - works everywhere including Render Free Tier.
-    2. Falls back to Gmail SMTP SSL (Port 465).
-    3. Falls back to Gmail STARTTLS (Port 587).
+    1. Checks for Brevo HTTPS API (Port 443) - works everywhere, sends to ANY recipient without domain.
+    2. Checks for Resend HTTPS API (Port 443).
+    3. Falls back to Gmail SMTP SSL (Port 465).
+    4. Falls back to Gmail STARTTLS (Port 587).
     """
-    resend_error = None
-    # 1. Try Resend HTTPS API if configured
+    errors = []
+
+    # 1. Try Brevo HTTPS API if configured (Send to any email address, 100% free)
+    if os.getenv("BREVO_API_KEY") or os.getenv("SENDINBLUE_API_KEY") or BREVO_API_KEY:
+        sent, info = _dispatch_brevo_https(recipient, subject, html_content, text_content)
+        if sent:
+            return True, info
+        errors.append(info)
+
+    # 2. Try Resend HTTPS API if configured
     if os.getenv("RESEND_API_KEY") or RESEND_API_KEY:
         sent, info = _dispatch_resend_https(recipient, subject, html_content, text_content)
         if sent:
             return True, info
-        resend_error = info
+        errors.append(info)
 
-    # 2. Try Direct SMTP (Works locally or on paid Render / standard cloud)
+    # 3. Try Direct SMTP (Works locally or on paid Render / standard cloud)
     pw = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or SMTP_PASSWORD or "fxjyxvrinycoalby"
     sender = os.getenv("SENDER_EMAIL") or SENDER_EMAIL or "examlenses@gmail.com"
     server_host = os.getenv("SMTP_SERVER") or SMTP_SERVER or "smtp.gmail.com"
-
-    errors = []
-    if resend_error:
-        errors.append(resend_error)
 
     # Try Port 465 (Direct SSL)
     try:

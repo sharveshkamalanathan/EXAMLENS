@@ -70,5 +70,6 @@ def email_diagnostic(recipient: str = "sharveshofficalmicro@gmail.com"):
         "recipient": recipient,
         "pw_configured": bool(pw),
         "pw_length": len(pw) if pw else 0,
-        "resend_configured": bool(os.getenv("RESEND_API_KEY"))
+        "resend_configured": bool(os.getenv("RESEND_API_KEY")),
+        "brevo_configured": bool(os.getenv("BREVO_API_KEY") or os.getenv("SENDINBLUE_API_KEY"))
     }
