@@ -65,12 +65,13 @@ node_modules/
 .pnp.js
 
 # Build outputs
+/dist/
+dist-ssr/
+frontend/dist-ssr/
+
 # frontend/dist/ is intentionally tracked for lightweight 1-click cloud deployments (Render, Koyeb)
 !frontend/dist/
 !frontend/dist/**
-frontend/dist-ssr/
-dist/
-dist-ssr/
 
 # Vite & TypeScript Caches
 .vite/
