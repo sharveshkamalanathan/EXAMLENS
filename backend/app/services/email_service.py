@@ -1,6 +1,8 @@
 import os
 import smtplib
 import ssl
+import json
+import urllib.request
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
@@ -17,41 +19,94 @@ SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or "fxjyxvrinycoalby"
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://examlens-m4ji.onrender.com")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 
-def _dispatch_smtp_email(msg: MIMEMultipart, recipient: str) -> tuple[bool, str]:
+def _dispatch_resend_https(recipient: str, subject: str, html_content: str, text_content: str) -> tuple[bool, str]:
     """
-    Dispatches email via Gmail SMTP with dual-protocol fallback:
-    1. Tries direct SSL on port 465 (most reliable in cloud hostings like Render/AWS).
-    2. Tries STARTTLS on port 587.
-    Returns (success: bool, info_or_error: str).
+    Sends email via Resend's REST API over HTTPS (Port 443).
+    Bypasses cloud provider SMTP firewall blocks (e.g. Render Free Tier blocking ports 465/587).
     """
+    api_key = os.getenv("RESEND_API_KEY") or RESEND_API_KEY
+    if not api_key:
+        return False, "RESEND_API_KEY not configured"
+
+    from_addr = os.getenv("RESEND_FROM", "ExamLens <onboarding@resend.dev>")
+    payload = {
+        "from": from_addr,
+        "to": [recipient],
+        "subject": subject,
+        "html": html_content,
+        "text": text_content
+    }
+
+    try:
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {api_key.strip()}",
+                "Content-Type": "application/json",
+                "User-Agent": "ExamLens/1.0"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return True, f"Delivered via Resend HTTPS (ID: {data.get('id', 'ok')})"
+    except Exception as e:
+        return False, f"Resend HTTPS API error: {str(e)}"
+
+def _dispatch_email(
+    recipient: str,
+    subject: str,
+    html_content: str,
+    text_content: str,
+    msg: MIMEMultipart
+) -> tuple[bool, str]:
+    """
+    Unified email dispatcher:
+    1. Checks for HTTPS Email API (Resend over Port 443) - works everywhere including Render Free Tier.
+    2. Falls back to Gmail SMTP SSL (Port 465).
+    3. Falls back to Gmail STARTTLS (Port 587).
+    """
+    # 1. Try Resend HTTPS API if configured
+    if os.getenv("RESEND_API_KEY") or RESEND_API_KEY:
+        sent, info = _dispatch_resend_https(recipient, subject, html_content, text_content)
+        if sent:
+            return True, info
+
+    # 2. Try Direct SMTP (Works locally or on paid Render / standard cloud)
     pw = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or SMTP_PASSWORD or "fxjyxvrinycoalby"
     sender = os.getenv("SENDER_EMAIL") or SENDER_EMAIL or "examlenses@gmail.com"
     server_host = os.getenv("SMTP_SERVER") or SMTP_SERVER or "smtp.gmail.com"
 
     errors = []
 
-    # 1. Try Port 465 (Direct SSL)
+    # Try Port 465 (Direct SSL)
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(server_host, 465, context=context, timeout=12) as s:
+        with smtplib.SMTP_SSL(server_host, 465, context=context, timeout=8) as s:
             s.login(sender, pw)
             s.sendmail(sender, recipient, msg.as_string())
         return True, f"Dispatched via SSL port 465 from {sender}"
     except Exception as e1:
-        errors.append(f"Port 465 SSL failed: {str(e1)}")
+        errors.append(f"Port 465 SSL: {str(e1)}")
 
-    # 2. Try Port 587 (STARTTLS)
+    # Try Port 587 (STARTTLS)
     try:
-        with smtplib.SMTP(server_host, 587, timeout=12) as s:
+        with smtplib.SMTP(server_host, 587, timeout=8) as s:
             s.starttls()
             s.login(sender, pw)
             s.sendmail(sender, recipient, msg.as_string())
         return True, f"Dispatched via STARTTLS port 587 from {sender}"
     except Exception as e2:
-        errors.append(f"Port 587 STARTTLS failed: {str(e2)}")
+        errors.append(f"Port 587 STARTTLS: {str(e2)}")
 
-    return False, " | ".join(errors)
+    # Cloud firewall notice if network unreachable
+    combined = " | ".join(errors)
+    if "Network is unreachable" in combined or "Errno 101" in combined:
+        combined += " [Render Free Tier blocks outbound SMTP ports 465/587. Add RESEND_API_KEY in Render to send via HTTPS Port 443]"
+
+    return False, combined
 
 def send_otp_email(recipient_email: str, recipient_name: str, otp_code: str) -> dict:
     """
@@ -138,8 +193,9 @@ def send_otp_email(recipient_email: str, recipient_name: str, otp_code: str) -> 
     msg.attach(part_text)
     msg.attach(part_html)
 
-    # Attempt live SMTP dispatch with dual SSL/STARTTLS fallback
-    sent, dispatch_info = _dispatch_smtp_email(msg, clean_recipient)
+    # Attempt live email dispatch (HTTPS Resend or direct SMTP fallback)
+    text_content = part_text.get_payload()
+    sent, dispatch_info = _dispatch_email(clean_recipient, subject, html_content, text_content, msg)
     if sent:
         return {
             "sent": True,
@@ -275,8 +331,9 @@ def send_login_greetings_email(
     msg.attach(part_text)
     msg.attach(part_html)
 
-    # Attempt live SMTP dispatch with dual SSL/STARTTLS fallback
-    sent, dispatch_info = _dispatch_smtp_email(msg, clean_recipient)
+    # Attempt live email dispatch (HTTPS Resend or direct SMTP fallback)
+    text_content = part_text.get_payload()
+    sent, dispatch_info = _dispatch_email(clean_recipient, subject, html_content, text_content, msg)
     sender = os.getenv("SENDER_EMAIL") or "examlenses@gmail.com"
     if sent:
         return {

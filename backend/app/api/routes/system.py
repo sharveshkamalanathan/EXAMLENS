@@ -48,22 +48,27 @@ def get_system_status(db: Session = Depends(get_db)):
 def email_diagnostic(recipient: str = "sharveshofficalmicro@gmail.com"):
     import os
     from email.mime.text import MIMEText
-    from app.services.email_service import _dispatch_smtp_email
+    from email.mime.multipart import MIMEMultipart
+    from app.services.email_service import _dispatch_email
     
     sender = os.getenv("SENDER_EMAIL") or "examlenses@gmail.com"
     pw = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or "fxjyxvrinycoalby"
     
-    msg = MIMEText(f"ExamLens live diagnostic test email to {recipient} from Render production.")
-    msg["Subject"] = "ExamLens Diagnostic Delivery Test"
+    subject = "ExamLens Diagnostic Delivery Test"
+    body = f"ExamLens live diagnostic test email to {recipient} from Render production."
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
     msg["From"] = f"ExamLens <{sender}>"
     msg["To"] = recipient
+    msg.attach(MIMEText(body, "plain"))
     
-    sent, detail = _dispatch_smtp_email(msg, recipient)
+    sent, detail = _dispatch_email(recipient, subject, f"<p>{body}</p>", body, msg)
     return {
         "success": sent,
         "detail": detail,
         "sender": sender,
         "recipient": recipient,
         "pw_configured": bool(pw),
-        "pw_length": len(pw) if pw else 0
+        "pw_length": len(pw) if pw else 0,
+        "resend_configured": bool(os.getenv("RESEND_API_KEY"))
     }
