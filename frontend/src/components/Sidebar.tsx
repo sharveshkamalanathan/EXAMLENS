@@ -67,6 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     { id: 'student-results', label: 'Published Results', icon: Award },
     { id: 'student-analytics', label: 'My Performance', icon: BarChart3 },
     { id: 'student-feedback', label: 'Learning Insights', icon: Sparkles },
+    { id: 'settings', label: 'Settings & Account', icon: Settings },
   ];
 
   const navItems = role === 'student' ? studentNav : (role === 'admin' ? adminNav : teacherNav);

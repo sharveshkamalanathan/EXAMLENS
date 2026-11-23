@@ -182,3 +182,29 @@ def delete_contact_message(
     db.delete(msg)
     db.commit()
     return {"message": "Message deleted successfully"}
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
+def delete_user_by_admin(
+    user_id: str,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Permanently delete a user account and their associated records (admin privilege)."""
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if target_user.id == current_admin.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete your own active administrator account from the user directory. Use Account Settings Danger Zone."
+        )
+
+    from app.api.routes.auth import delete_user_cascade
+    target_email = target_user.email
+    delete_user_cascade(target_user, db)
+    return {
+        "success": True,
+        "message": f"User {target_email} has been permanently deleted.",
+        "deleted_user_id": user_id
+    }

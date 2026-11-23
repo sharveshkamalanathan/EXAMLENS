@@ -112,6 +112,20 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
     }
   };
 
+  const handleDeleteUser = async (userId: string, userName: string, userEmail: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete user "${userName}" (${userEmail})?\nThis action cannot be undone and will remove all their examinations and submissions.`)) return;
+    try {
+      await api.deleteUser(userId);
+      soundEffects.playSuccessPing();
+      setActionNotice(`User ${userEmail} was permanently deleted.`);
+      setTimeout(() => setActionNotice(null), 3000);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      loadAllAdminData();
+    } catch (err: any) {
+      alert(`Delete user failed: ${err.message || 'Error occurred'}`);
+    }
+  };
+
   // Filtered Users
   const filteredUsers = users.filter(u => {
     const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
@@ -617,7 +631,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                   <th className="py-3 px-4">Institution / Dept</th>
                   <th className="py-3 px-4">Roll Number</th>
                   <th className="py-3 px-4">Usage Metric</th>
-                  <th className="py-3 px-4 rounded-r-xl">Joined Date</th>
+                  <th className="py-3 px-4">Joined Date</th>
+                  <th className="py-3 px-4 rounded-r-xl text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -656,6 +671,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                     </td>
                     <td className="py-3.5 px-4 text-slate-400">
                       {u.created_at ? new Date(u.created_at).toLocaleDateString() : 'Active'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        onClick={() => handleDeleteUser(u.id, u.full_name, u.email)}
+                        title={`Delete account ${u.email}`}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors inline-flex items-center justify-center cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}

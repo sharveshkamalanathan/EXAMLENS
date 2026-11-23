@@ -10,8 +10,7 @@ import {
   Menu,
   X,
   Layers,
-  Cpu,
-  Smartphone
+  Cpu
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -135,14 +134,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Mail className="w-3.5 h-3.5 text-brand-500" />
             <span>Contact Us</span>
           </button>
-          <button 
-            type="button"
-            onClick={() => onNavigateTab ? onNavigateTab('mobile-dashboard') : null} 
-            className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors py-1 cursor-pointer flex items-center space-x-1 text-indigo-600 dark:text-indigo-400 font-semibold"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>Mobile Evaluator</span>
-          </button>
         </div>
 
         {/* Right Controls: Dark Mode Toggle, Auth & Mobile Menu Trigger */}
@@ -254,16 +245,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Mail className="w-4 h-4" />
               <span>Contact Us / Inquiries</span>
-            </button>
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                if (onNavigateTab) onNavigateTab('mobile-dashboard');
-              }}
-              className="text-left p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 hover:bg-indigo-100 transition-colors col-span-2 flex items-center space-x-2 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200/60 dark:border-indigo-800"
-            >
-              <Smartphone className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>AI Advanced Evaluator (Mobile Dashboard)</span>
             </button>
           </div>
 

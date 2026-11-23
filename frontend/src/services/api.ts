@@ -219,4 +219,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Account Management & Danger Zone
+  deleteMyAccount: () => request<{ success: boolean; message: string; deleted_user_id?: string }>('/auth/me', { method: 'DELETE' }),
+  deleteUser: (userId: string) => request<{ success: boolean; message: string; deleted_user_id?: string }>(`/admin/users/${userId}`, { method: 'DELETE' }),
 };

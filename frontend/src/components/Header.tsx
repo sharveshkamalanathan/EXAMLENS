@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Shield, UserCheck, Bell, ChevronDown, Sun, Moon, Smartphone } from 'lucide-react';
+import { Sparkles, Shield, UserCheck, Bell, ChevronDown, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -7,10 +7,9 @@ interface HeaderProps {
   title: string;
   subtitle?: string;
   onOpenSettings?: () => void;
-  onToggleMobileView?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, subtitle, onOpenSettings, onToggleMobileView }) => {
+export const Header: React.FC<HeaderProps> = ({ title, subtitle, onOpenSettings }) => {
   const { user, role, loginAsDemo } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
@@ -44,19 +43,6 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onOpenSettings,
             <Moon className="w-4 h-4 text-slate-700 animate-in spin-in-90 duration-300" />
           )}
         </button>
-
-        {/* Mobile View Toggle */}
-        {onToggleMobileView && (
-          <button
-            type="button"
-            onClick={onToggleMobileView}
-            title="Switch to Mobile AI Evaluator View"
-            className="flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded-xl transition-all border border-indigo-200 dark:border-indigo-800 cursor-pointer shadow-sm touch-press"
-          >
-            <Smartphone className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="hidden sm:inline">Mobile Evaluator</span>
-          </button>
-        )}
 
         {/* Demo Mode Badge */}
         <div className="hidden sm:flex items-center space-x-2 px-3 py-1 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/80 rounded-full text-xs text-amber-800 dark:text-amber-300">

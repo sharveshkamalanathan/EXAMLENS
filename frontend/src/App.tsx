@@ -178,11 +178,9 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Check if Mobile Evaluator Dashboard should be displayed
+  // Check if Mobile Evaluator Dashboard should be displayed (disabled inside authenticated portal)
   const showMobileDashboard = 
-    currentTab === 'mobile-dashboard' ||
-    viewMode === 'mobile' ||
-    (viewMode === 'auto' && isMobileScreen && currentTab !== 'landing');
+    !isAuthenticated && (currentTab === 'mobile-dashboard' || viewMode === 'mobile');
 
   if (showMobileDashboard) {
     return (
@@ -264,11 +262,6 @@ const AppContent: React.FC = () => {
           title={title} 
           subtitle={subtitle}
           onOpenSettings={() => handleNavigate('settings')}
-          onToggleMobileView={() => {
-            setViewMode('mobile');
-            localStorage.setItem('examlens_view_mode', 'mobile');
-            setCurrentTab('mobile-dashboard');
-          }}
         />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 dark:bg-slate-950">

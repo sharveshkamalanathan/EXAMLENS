@@ -5,6 +5,9 @@ from app.database.session import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.core.deps import get_current_user
 from app.models.user import User, UserRole
+from app.models.exam import Exam, ExamEnrollment
+from app.models.script import AnswerScript, UploadBatch, ExtractedAnswer
+from app.models.evaluation import TeacherReview, ResultPublication
 from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse, PasswordResetRequest, PasswordResetResponse
 from app.services.email_service import send_login_greetings_email
 
@@ -178,4 +181,45 @@ def reset_password(payload: PasswordResetRequest, db: Session = Depends(get_db))
         success=True,
         message="Password updated successfully! You can now sign in with your new password."
     )
+
+def delete_user_cascade(user: User, db: Session):
+    """Safely cascades all relationships and deletes the user."""
+    user_id = user.id
+    # 1. Unlink student scripts
+    db.query(AnswerScript).filter(AnswerScript.student_id == user_id).update({AnswerScript.student_id: None}, synchronize_session=False)
+    # 2. Unlink verified OCR answers
+    db.query(ExtractedAnswer).filter(ExtractedAnswer.verified_by == user_id).update({ExtractedAnswer.verified_by: None}, synchronize_session=False)
+    # 3. Clean up enrollments
+    db.query(ExamEnrollment).filter(ExamEnrollment.student_id == user_id).delete(synchronize_session=False)
+    # 4. Clean up teacher reviews
+    db.query(TeacherReview).filter(TeacherReview.teacher_id == user_id).delete(synchronize_session=False)
+    # 5. Clean up result publications
+    db.query(ResultPublication).filter(ResultPublication.teacher_id == user_id).delete(synchronize_session=False)
+    # 6. Clean up upload batches
+    db.query(UploadBatch).filter(UploadBatch.teacher_id == user_id).delete(synchronize_session=False)
+    # 7. Delete exams created by user (cascades to questions, scripts, evaluations)
+    exams = db.query(Exam).filter(Exam.teacher_id == user_id).all()
+    for ex in exams:
+        db.delete(ex)
+    # 8. Delete user record
+    db.delete(user)
+    db.commit()
+
+@router.delete("/me", status_code=status.HTTP_200_OK)
+def delete_my_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Allows any authenticated user (teacher, student, admin) to permanently delete
+    their own account and all associated workspace data.
+    """
+    user_email = current_user.email
+    user_id = current_user.id
+    delete_user_cascade(current_user, db)
+    return {
+        "success": True,
+        "message": f"Account {user_email} has been permanently deleted.",
+        "deleted_user_id": user_id
+    }
 
