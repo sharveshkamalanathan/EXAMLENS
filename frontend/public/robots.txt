@@ -3,4 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /storage/
 
-Sitemap: https://examlens.onrender.com/sitemap.xml
+Sitemap: https://examlens-m4ji.onrender.com/sitemap.xml
