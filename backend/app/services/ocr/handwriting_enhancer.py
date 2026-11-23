@@ -104,6 +104,25 @@ HANDWRITING_REPLACEMENTS: List[Tuple[str, str]] = [
     (r'\bComunication\b', 'Communication'),
     (r'\bFiveProcessStates\b', 'Five Process States'),
     (r'^yDifferentiate\b', '4. Differentiate'),
+
+    # Pro-level word squishing & handwriting artifact fixes
+    (r'\bme\s+mory\b', 'memory'),
+    (r'\baddresspace\b', 'address space'),
+    (r'\baddress\s+pace\b', 'address space'),
+    (r'\bisdivided\b', 'is divided'),
+    (r'\bis\s+a\b', 'is a'),
+    (r'\bisa\b', 'is a'),
+    (r'\bofa\b', 'of a'),
+    (r'\btobe\b', 'to be'),
+    (r'\bprocessto\b', 'process to'),
+    (r'\blogicalmemory\b', 'logical memory'),
+    (r'\bphysicalmemory\b', 'physical memory'),
+    (r'\bnoncontiguous\b', 'non-contiguous'),
+    (r'\bfourconditions\b', 'four conditions'),
+    (r'\bmutualexclusion\b', 'mutual exclusion'),
+    (r'\bholdandwait\b', 'hold and wait'),
+    (r'\bnopreemption\b', 'no preemption'),
+    (r'\bcircularwait\b', 'circular wait'),
 ]
 
 DIGIT_MAP = {
@@ -157,3 +176,76 @@ def clean_handwriting_text(text: str) -> str:
     # Normalize common trailing artifacts
     cleaned = re.sub(r'[ \t]+', ' ', cleaned)
     return cleaned
+
+# Common academic subtopics that students write in answer scripts
+SUBTOPIC_HEADER_REGEX = re.compile(
+    r'(?:^|\n)\s*(?:[-•*]\s*)?'
+    r'(Definition|Concept|Overview|Introduction|'
+    r'(?:Major\s+)?Functions(?:\s+of\s+[A-Za-z\s]+)?|'
+    r'Types(?:\s+of\s+[A-Za-z\s]+)?|Classification|'
+    r'Working\s+Principle|Architecture|Mechanism|'
+    r'(?:Five\s+)?Process\s+States|States|'
+    r'Advantages|Disadvantages|Differences|Comparison|'
+    r'Key\s+Characteristics|Properties|Features|'
+    r'Example|Examples|Algorithm|Steps|Procedure|'
+    r'(?:Four\s+)?(?:Necessary\s+)?Conditions|Conditions|'
+    r'Conclusion|Summary)'
+    r'\s*[:\.\-–—]?\s*',
+    re.IGNORECASE
+)
+
+def format_answer_subtopics(text: str) -> str:
+    """
+    Polishes extracted answer text so questions and subtopics are structured like a pro:
+    - Bolds and separates distinct subtopics (e.g. **Definition:**, **Functions:**, **Process States:**).
+    - Formats numbered sub-points (1) New, 2) Ready...) cleanly on their own lines.
+    - Preserves academic flow without clumping text together.
+    """
+    if not text or text.strip() == "[Not Attempted / Blank]":
+        return text
+
+    cleaned = clean_handwriting_text(text).strip()
+    raw_lines = cleaned.split('\n')
+    formatted_lines: List[str] = []
+
+    for idx, raw_line in enumerate(raw_lines):
+        line = raw_line.strip()
+        if not line:
+            if formatted_lines and formatted_lines[-1] != "":
+                formatted_lines.append("")
+            continue
+
+        # Check for subtopic heading
+        m_sub = SUBTOPIC_HEADER_REGEX.match(line)
+        if m_sub:
+            sub_title = m_sub.group(1).title()
+            rest_of_line = line[m_sub.end():].strip()
+            
+            # Format subtopic header
+            if formatted_lines and formatted_lines[-1] != "":
+                formatted_lines.append("")
+            
+            if rest_of_line:
+                formatted_lines.append(f"**{sub_title}:**")
+                formatted_lines.append(rest_of_line)
+            else:
+                formatted_lines.append(f"**{sub_title}:**")
+            continue
+
+        # Check for numbered sub-item: e.g. 1) New, 2. Ready, etc.
+        m_item = re.match(r'^[\(\[]?\s*([0-9]{1,2})\s*[\)\]\.\:\-]\s*(.*)$', line)
+        if m_item:
+            num = m_item.group(1)
+            body = m_item.group(2).strip()
+            formatted_lines.append(f"{num}. {body}")
+            continue
+
+        # Check for bullet: e.g. - Point, * Point
+        m_bullet = re.match(r'^[\-•*]\s*(.*)$', line)
+        if m_bullet:
+            formatted_lines.append(f"• {m_bullet.group(1).strip()}")
+            continue
+
+        formatted_lines.append(line)
+
+    return '\n'.join(formatted_lines).strip()

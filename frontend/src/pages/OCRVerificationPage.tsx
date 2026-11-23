@@ -27,13 +27,14 @@ import { soundEffects } from '../utils/audioEffects';
 import { AnswerScript, ExtractedAnswer, Exam } from '../types';
 
 interface OCRVerificationPageProps {
+  initialExamId?: string;
   initialScriptId?: string;
   onNavigateTab: (tab: string, meta?: any) => void;
 }
 
-export const OCRVerificationPage: React.FC<OCRVerificationPageProps> = ({ initialScriptId, onNavigateTab }) => {
+export const OCRVerificationPage: React.FC<OCRVerificationPageProps> = ({ initialExamId, initialScriptId, onNavigateTab }) => {
   const [exams, setExams] = useState<Exam[]>([]);
-  const [selectedExamId, setSelectedExamId] = useState<string>('');
+  const [selectedExamId, setSelectedExamId] = useState<string>(initialExamId || '');
   const [scripts, setScripts] = useState<AnswerScript[]>([]);
   const [selectedScriptId, setSelectedScriptId] = useState<string>(initialScriptId || '');
   const [scriptDetail, setScriptDetail] = useState<any>(null);
@@ -59,8 +60,29 @@ export const OCRVerificationPage: React.FC<OCRVerificationPageProps> = ({ initia
       try {
         const exList = await api.getExams();
         setExams(exList);
-        if (exList.length > 0) {
+
+        let targetExamId = initialExamId;
+        const targetScriptId = initialScriptId;
+
+        if (targetScriptId) {
+          try {
+            const sInfo = await api.getScript(targetScriptId);
+            if (sInfo && sInfo.exam_id) {
+              targetExamId = sInfo.exam_id;
+            }
+          } catch (e) {
+            console.warn("Could not prefetch script info", e);
+          }
+        }
+
+        if (targetExamId && exList.some(e => e.id === targetExamId)) {
+          setSelectedExamId(targetExamId);
+        } else if (exList.length > 0 && !selectedExamId) {
           setSelectedExamId(exList[0].id);
+        }
+
+        if (targetScriptId) {
+          setSelectedScriptId(targetScriptId);
         }
       } catch (err) {
         console.error(err);
@@ -69,7 +91,19 @@ export const OCRVerificationPage: React.FC<OCRVerificationPageProps> = ({ initia
       }
     };
     init();
-  }, []);
+  }, [initialExamId, initialScriptId]);
+
+  useEffect(() => {
+    if (initialScriptId && initialScriptId !== selectedScriptId) {
+      setSelectedScriptId(initialScriptId);
+    }
+  }, [initialScriptId]);
+
+  useEffect(() => {
+    if (initialExamId && initialExamId !== selectedExamId) {
+      setSelectedExamId(initialExamId);
+    }
+  }, [initialExamId]);
 
   useEffect(() => {
     if (selectedExamId) {
@@ -81,8 +115,15 @@ export const OCRVerificationPage: React.FC<OCRVerificationPageProps> = ({ initia
     try {
       const data = await api.getScripts(examId);
       setScripts(data);
-      if (!selectedScriptId && data.length > 0) {
+      if (selectedScriptId && data.some(s => s.id === selectedScriptId)) {
+        // Keep current selected script
+      } else if (initialScriptId && data.some(s => s.id === initialScriptId)) {
+        setSelectedScriptId(initialScriptId);
+      } else if (data.length > 0) {
         setSelectedScriptId(data[0].id);
+      } else {
+        setSelectedScriptId('');
+        setScriptDetail(null);
       }
     } catch (err) {
       console.error(err);

@@ -107,10 +107,49 @@ def run_script_ocr(
         if ocr_data.confidence < 0.80:
             has_low_conf = True
 
-    combined_text = "\n\n".join(all_page_texts)
+    combined_text = "\n\n".join(t for t in all_page_texts if t.strip())
 
-    # Question segmentation
+    # Check for direct digital text extracted from DOCX / digital PDF upload
+    pages_output_dir = os.path.join(settings.PROCESSED_DIR, script.id)
+    digital_text_file = os.path.join(pages_output_dir, "full_digital_text.txt")
+    if os.path.exists(digital_text_file) and os.path.getsize(digital_text_file) > 10:
+        try:
+            with open(digital_text_file, "r", encoding="utf-8", errors="ignore") as f:
+                digital_content = f.read().strip()
+                if len(digital_content) > len(combined_text):
+                    combined_text = digital_content
+                    has_low_conf = False
+        except Exception:
+            pass
+
+    # Ensure questions exist for the exam; if none created yet, auto-discover and provision them!
     questions = db.query(Question).filter(Question.exam_id == script.exam_id).order_by(Question.display_order).all()
+    if not questions:
+        from app.services.answer_segmentation import auto_discover_questions_from_text
+        discovered = auto_discover_questions_from_text(combined_text)
+        if not discovered:
+            discovered = [{
+                "question_number": "Q1",
+                "prompt_text": f"Curriculum Assessment Question 1 ({script.exam.title})",
+                "text": combined_text.strip() or "General Answer Submission",
+                "confidence": 0.88
+            }]
+        for idx, disc in enumerate(discovered, 1):
+            new_q = Question(
+                exam_id=script.exam_id,
+                question_number=disc["question_number"],
+                text=disc["prompt_text"] if len(disc["prompt_text"]) > 5 else f"Exam Question {idx}",
+                question_type="descriptive",
+                max_marks=round(float(script.exam.total_marks or 50.0) / max(1, len(discovered)), 1),
+                reference_answer=disc["text"],
+                display_order=idx
+            )
+            db.add(new_q)
+            db.flush()
+            questions.append(new_q)
+        db.commit()
+
+    # Intelligent question & subtopic segmentation
     segmented = segment_text_by_questions(combined_text, questions)
 
     # Delete any prior extracted answers

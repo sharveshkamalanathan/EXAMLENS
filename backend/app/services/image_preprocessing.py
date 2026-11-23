@@ -157,6 +157,11 @@ def convert_pdf_to_images(pdf_path: str, output_dir: str) -> list[str]:
     if ext in [".docx", ".doc"]:
         doc_lines = extract_text_from_docx(pdf_path)
         base_name = os.path.splitext(os.path.basename(pdf_path))[0]
+        try:
+            with open(os.path.join(output_dir, "full_digital_text.txt"), "w", encoding="utf-8") as f:
+                f.write("\n".join(doc_lines))
+        except Exception:
+            pass
         return render_text_to_script_pages(doc_lines, output_dir, title=base_name)
 
     # 1. Try PyMuPDF (pymupdf / fitz)
@@ -167,14 +172,24 @@ def convert_pdf_to_images(pdf_path: str, output_dir: str) -> list[str]:
             import fitz as fitz_module
             
         doc = fitz_module.open(pdf_path)
+        pdf_texts = []
         for page_idx in range(len(doc)):
             page = doc.load_page(page_idx)
+            p_text = page.get_text().strip()
+            if p_text:
+                pdf_texts.append(p_text)
             # Render at 150 DPI for clean handwriting visibility
             pix = page.get_pixmap(dpi=150)
             page_path = os.path.join(output_dir, f"page_{page_idx + 1}.jpg")
             pix.save(page_path)
             generated_pages.append(page_path)
         doc.close()
+        if pdf_texts:
+            try:
+                with open(os.path.join(output_dir, "full_digital_text.txt"), "w", encoding="utf-8") as f:
+                    f.write("\n\n".join(pdf_texts))
+            except Exception:
+                pass
         if generated_pages:
             return generated_pages
     except Exception as e:

@@ -32,6 +32,7 @@ const AppContent: React.FC = () => {
   // Navigation state
   const [currentTab, setCurrentTab] = useState<string>('landing');
   const [selectedExamId, setSelectedExamId] = useState<string>('');
+  const [selectedScriptId, setSelectedScriptId] = useState<string>('');
   
   // Modals state
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
@@ -85,6 +86,9 @@ const AppContent: React.FC = () => {
       setSelectedExamId(meta);
     } else if (meta && meta.examId) {
       setSelectedExamId(meta.examId);
+    }
+    if (meta && meta.scriptId) {
+      setSelectedScriptId(meta.scriptId);
     }
     setCurrentTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -296,6 +300,8 @@ const AppContent: React.FC = () => {
 
           {currentTab === 'ocr-verification' && (
             <OCRVerificationPage 
+              initialExamId={selectedExamId}
+              initialScriptId={selectedScriptId}
               onNavigateTab={handleNavigate}
             />
           )}

@@ -89,8 +89,16 @@ export const UploadCenterPage: React.FC<UploadCenterPageProps> = ({ initialExamI
         formData.append('student_roll_no', rollNo);
         formData.append('student_name', studentName);
 
-        await api.uploadScript(selectedExamId, formData);
-        setUploadMessage("Script uploaded successfully! Initializing page conversions...");
+        const newScript = await api.uploadScript(selectedExamId, formData);
+        setUploadMessage("Script uploaded successfully! Running handwriting OCR pipeline...");
+        setSelectedFiles([]);
+        await loadScripts(selectedExamId);
+
+        // Auto-run OCR and navigate directly to OCR verification
+        if (newScript && newScript.id) {
+          await handleTriggerOCR(newScript.id);
+          return;
+        }
       } else {
         const formData = new FormData();
         selectedFiles.forEach(file => {
@@ -100,10 +108,9 @@ export const UploadCenterPage: React.FC<UploadCenterPageProps> = ({ initialExamI
 
         await api.uploadBatch(selectedExamId, formData);
         setUploadMessage(`Batch uploaded! ${selectedFiles.length} answer scripts registered.`);
+        setSelectedFiles([]);
+        await loadScripts(selectedExamId);
       }
-
-      setSelectedFiles([]);
-      loadScripts(selectedExamId);
     } catch (err: any) {
       setUploadMessage(`Upload failed: ${err.message || 'Error processing document'}`);
     } finally {
@@ -120,7 +127,7 @@ export const UploadCenterPage: React.FC<UploadCenterPageProps> = ({ initialExamI
       clearInterval(interval);
       soundEffects.playOcrSuccessSound();
       await loadScripts(selectedExamId);
-      onNavigateTab('ocr-verification', { scriptId });
+      onNavigateTab('ocr-verification', { scriptId, examId: selectedExamId });
     } catch (err: any) {
       clearInterval(interval);
       alert(`OCR failed: ${err.message}`);
@@ -327,7 +334,7 @@ export const UploadCenterPage: React.FC<UploadCenterPageProps> = ({ initialExamI
                             <span>{processingScriptId === s.id ? 'Scanning...' : 'Run OCR'}</span>
                           </button>
                           <button
-                            onClick={() => onNavigateTab('ocr-verification', { scriptId: s.id })}
+                            onClick={() => onNavigateTab('ocr-verification', { scriptId: s.id, examId: selectedExamId })}
                             className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-semibold text-[11px]"
                           >
                             Verify

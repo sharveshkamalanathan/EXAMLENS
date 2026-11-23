@@ -5,7 +5,8 @@ from app.models.question import Question
 from app.services.ocr.handwriting_enhancer import (
     clean_handwriting_text,
     normalize_digit_char,
-    normalize_question_marker
+    normalize_question_marker,
+    format_answer_subtopics
 )
 
 # Universal question marker regex:
@@ -65,6 +66,95 @@ def extract_key_terms(text: str) -> List[str]:
     }
     return [w for w in words if w not in stop_words]
 
+def is_nested_sub_list(lines: List[str], idx: int) -> bool:
+    """
+    Determines if a numbered line (e.g. '4) Waiting') is a sub-point/subtopic within an answer
+    rather than a top-level question header.
+    """
+    curr = lines[idx].strip()
+    m_curr = re.match(r'^[\(\[]?\s*([0-9]+)\s*[\)\]\.\:\-]', curr)
+    if not m_curr:
+        return False
+    try:
+        c_num = int(m_curr.group(1))
+    except ValueError:
+        return False
+
+    p_idx = idx - 1
+    while p_idx >= 0 and not lines[p_idx].strip():
+        p_idx -= 1
+        
+    if p_idx >= 0:
+        prev = lines[p_idx].strip()
+        # If preceding line introduces a list/enumeration
+        if prev.endswith(':') or any(w in prev.lower() for w in ['following', 'states', 'conditions', 'types', 'steps', 'points', 'rules', 'such as', 'consists of', 'includes', 'properties', 'reasons']):
+            if c_num == 1:
+                return True
+        # If preceding line was the previous integer in sequence (e.g. 3) -> 4))
+        m_prev = re.match(r'^[\(\[]?\s*([0-9]+)\s*[\)\]\.\:\-]', prev)
+        if m_prev:
+            try:
+                p_num = int(m_prev.group(1))
+                if c_num == p_num + 1:
+                    return True
+            except ValueError:
+                pass
+                
+    return False
+
+def auto_discover_questions_from_text(full_text: str) -> List[Dict[str, Any]]:
+    """
+    Intelligently discovers questions and subtopics directly from student answer script text
+    when questions have not yet been pre-configured in the database.
+    """
+    cleaned_full_text = clean_handwriting_text(full_text)
+    raw_lines = cleaned_full_text.split('\n')
+    lines = [l.strip() for l in raw_lines]
+
+    if not any(lines):
+        return []
+
+    boundaries = []
+    for idx, line in enumerate(lines):
+        if not line:
+            continue
+        m = QUESTION_MARKER_REGEX.match(line)
+        if m:
+            is_explicit = bool(EXPLICIT_PREFIX.match(line))
+            if not is_explicit and is_nested_sub_list(lines, idx):
+                continue
+            digit = m.group(1) or m.group(2) or m.group(3) or (m.group(4) if len(m.groups()) >= 4 else None)
+            norm_d = normalize_q_label(digit) if digit else ""
+            if norm_d and norm_d.isdigit():
+                q_num = int(norm_d)
+                if not boundaries or q_num > boundaries[-1][1] or is_explicit:
+                    boundaries.append((idx, q_num, f"Q{q_num}"))
+
+    if not boundaries:
+        formatted = format_answer_subtopics(cleaned_full_text)
+        return [{
+            "question_number": "Q1",
+            "prompt_text": "Exam Question 1",
+            "text": formatted,
+            "confidence": 0.85
+        }]
+
+    discovered = []
+    for i, (start_line, q_num, q_label) in enumerate(boundaries):
+        end_line = boundaries[i + 1][0] if i + 1 < len(boundaries) else len(lines)
+        q_lines = lines[start_line:end_line]
+        first_line = q_lines[0] if q_lines else f"Question {q_num}"
+        raw_ans = '\n'.join(q_lines).strip()
+        formatted_ans = format_answer_subtopics(raw_ans)
+        discovered.append({
+            "question_number": q_label,
+            "prompt_text": first_line[:120],
+            "text": formatted_ans,
+            "confidence": 0.90
+        })
+
+    return discovered
+
 def segment_text_by_questions(
     full_text: str,
     questions: List[Question]
@@ -80,7 +170,19 @@ def segment_text_by_questions(
     6. Secondary semantic recovery pass: ensures student answers are not dropped if numbers were faintly written.
     """
     if not questions:
-        return []
+        discovered = auto_discover_questions_from_text(full_text)
+        res = []
+        for d in discovered:
+            res.append({
+                "question_id": d["question_number"],
+                "question_number": d["question_number"],
+                "question_text": d["prompt_text"],
+                "text": d["text"],
+                "confidence": d["confidence"],
+                "is_manual_required": False,
+                "reason": "Auto-discovered question from answer script"
+            })
+        return res
 
     # Clean raw OCR handwriting text first
     cleaned_full_text = clean_handwriting_text(full_text)
@@ -126,6 +228,10 @@ def segment_text_by_questions(
                 )
 
                 if digit_matches:
+                    # Ignore sub-list items inside previous questions (e.g. '4) Waiting')
+                    if not is_explicit and is_nested_sub_list(lines, line_idx):
+                        continue
+
                     # Question 1 at start of paper is unconditionally valid
                     if q_idx == 0:
                         best_cand = (line_idx, 10.0, 0.98)
@@ -214,7 +320,8 @@ def segment_text_by_questions(
         if not non_empty_content:
             answer_block = "[Not Attempted / Blank]"
         else:
-            answer_block = '\n'.join(ans_lines).strip()
+            raw_block = '\n'.join(ans_lines).strip()
+            answer_block = format_answer_subtopics(raw_block)
 
         aggregated_answers[q.id] = {
             "question_id": q.id,
