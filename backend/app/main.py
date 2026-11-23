@@ -57,7 +57,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 # Static file serving for scans and documents
 if os.path.exists(settings.STORAGE_DIR):
@@ -96,6 +96,46 @@ if dist_dir:
     @app.api_route("/", methods=["GET", "HEAD"])
     async def serve_root():
         return FileResponse(os.path.join(dist_dir, "index.html"))
+
+    @app.get("/sitemap.xml")
+    async def serve_sitemap():
+        sitemap_candidates = [
+            os.path.join(dist_dir, "sitemap.xml"),
+            os.path.abspath("frontend/public/sitemap.xml"),
+            os.path.abspath("../frontend/public/sitemap.xml"),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "public", "sitemap.xml"))
+        ]
+        sitemap_path = next((p for p in sitemap_candidates if os.path.isfile(p)), None)
+        if sitemap_path:
+            return FileResponse(sitemap_path, media_type="application/xml")
+        return Response(content="""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://examlens-m4ji.onrender.com/</loc>
+    <lastmod>2026-11-23</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://examlens-m4ji.onrender.com/landing</loc>
+    <lastmod>2026-11-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+</urlset>""", media_type="application/xml")
+
+    @app.get("/robots.txt")
+    async def serve_robots():
+        robots_candidates = [
+            os.path.join(dist_dir, "robots.txt"),
+            os.path.abspath("frontend/public/robots.txt"),
+            os.path.abspath("../frontend/public/robots.txt"),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "public", "robots.txt"))
+        ]
+        robots_path = next((p for p in robots_candidates if os.path.isfile(p)), None)
+        if robots_path:
+            return FileResponse(robots_path, media_type="text/plain")
+        return Response(content="User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /storage/\n\nSitemap: https://examlens-m4ji.onrender.com/sitemap.xml", media_type="text/plain")
 
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     async def serve_spa(full_path: str):

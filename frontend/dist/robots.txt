@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /storage/
+
+Sitemap: https://examlens-m4ji.onrender.com/sitemap.xml
