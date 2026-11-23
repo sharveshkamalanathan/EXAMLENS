@@ -1,5 +1,6 @@
 import os
 import smtplib
+import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
@@ -14,8 +15,43 @@ load_dotenv()
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "examlenses@gmail.com")
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", os.getenv("GMAIL_APP_PASSWORD", ""))
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or "fxjyxvrinycoalby"
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://examlens-m4ji.onrender.com")
+
+def _dispatch_smtp_email(msg: MIMEMultipart, recipient: str) -> tuple[bool, str]:
+    """
+    Dispatches email via Gmail SMTP with dual-protocol fallback:
+    1. Tries direct SSL on port 465 (most reliable in cloud hostings like Render/AWS).
+    2. Tries STARTTLS on port 587.
+    Returns (success: bool, info_or_error: str).
+    """
+    pw = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or SMTP_PASSWORD or "fxjyxvrinycoalby"
+    sender = os.getenv("SENDER_EMAIL") or SENDER_EMAIL or "examlenses@gmail.com"
+    server_host = os.getenv("SMTP_SERVER") or SMTP_SERVER or "smtp.gmail.com"
+
+    errors = []
+
+    # 1. Try Port 465 (Direct SSL)
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(server_host, 465, context=context, timeout=12) as s:
+            s.login(sender, pw)
+            s.sendmail(sender, recipient, msg.as_string())
+        return True, f"Dispatched via SSL port 465 from {sender}"
+    except Exception as e1:
+        errors.append(f"Port 465 SSL failed: {str(e1)}")
+
+    # 2. Try Port 587 (STARTTLS)
+    try:
+        with smtplib.SMTP(server_host, 587, timeout=12) as s:
+            s.starttls()
+            s.login(sender, pw)
+            s.sendmail(sender, recipient, msg.as_string())
+        return True, f"Dispatched via STARTTLS port 587 from {sender}"
+    except Exception as e2:
+        errors.append(f"Port 587 STARTTLS failed: {str(e2)}")
+
+    return False, " | ".join(errors)
 
 def send_otp_email(recipient_email: str, recipient_name: str, otp_code: str) -> dict:
     """
@@ -102,34 +138,22 @@ def send_otp_email(recipient_email: str, recipient_name: str, otp_code: str) -> 
     msg.attach(part_text)
     msg.attach(part_html)
 
-    # Attempt live SMTP dispatch if credentials provided
-    if SMTP_PASSWORD:
-        try:
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=8) as server:
-                server.starttls()
-                server.login(SENDER_EMAIL, SMTP_PASSWORD)
-                server.sendmail(SENDER_EMAIL, clean_recipient, msg.as_string())
-            return {
-                "sent": True,
-                "message": f"Real-time OTP dispatched to {clean_recipient} via Gmail SMTP from {SENDER_EMAIL}.",
-                "sender": SENDER_EMAIL
-            }
-        except Exception as e:
-            # Fallback to simulated delivery without breaking user flow
-            return {
-                "sent": False,
-                "message": f"Email prepared from {SENDER_EMAIL}. (SMTP note: {str(e)})",
-                "sender": SENDER_EMAIL,
-                "demo_otp": otp_code
-            }
-
-    # If SMTP_PASSWORD not set, simulate live dispatch gracefully
-    return {
-        "sent": False,
-        "message": f"Real-time OTP prepared from {SENDER_EMAIL} for {clean_recipient}.",
-        "sender": SENDER_EMAIL,
-        "demo_otp": otp_code
-    }
+    # Attempt live SMTP dispatch with dual SSL/STARTTLS fallback
+    sent, dispatch_info = _dispatch_smtp_email(msg, clean_recipient)
+    if sent:
+        return {
+            "sent": True,
+            "message": f"Real-time OTP dispatched to {clean_recipient} ({dispatch_info}).",
+            "sender": os.getenv("SENDER_EMAIL") or "examlenses@gmail.com",
+            "demo_otp": otp_code
+        }
+    else:
+        return {
+            "sent": False,
+            "message": f"OTP generated. Delivery note: {dispatch_info}",
+            "sender": os.getenv("SENDER_EMAIL") or "examlenses@gmail.com",
+            "demo_otp": otp_code
+        }
 
 def send_login_greetings_email(
     recipient_email: str,
@@ -251,26 +275,18 @@ def send_login_greetings_email(
     msg.attach(part_text)
     msg.attach(part_html)
 
-    if SMTP_PASSWORD:
-        try:
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=8) as server:
-                server.starttls()
-                server.login(SENDER_EMAIL, SMTP_PASSWORD)
-                server.sendmail(SENDER_EMAIL, clean_recipient, msg.as_string())
-            return {
-                "sent": True,
-                "message": f"Greetings email sent to {clean_recipient} from {SENDER_EMAIL}.",
-                "sender": SENDER_EMAIL
-            }
-        except Exception as e:
-            return {
-                "sent": False,
-                "message": f"SMTP dispatch error: {str(e)}",
-                "sender": SENDER_EMAIL
-            }
-
-    return {
-        "sent": False,
-        "message": f"Greetings email prepared for {clean_recipient} from {SENDER_EMAIL}.",
-        "sender": SENDER_EMAIL
-    }
+    # Attempt live SMTP dispatch with dual SSL/STARTTLS fallback
+    sent, dispatch_info = _dispatch_smtp_email(msg, clean_recipient)
+    sender = os.getenv("SENDER_EMAIL") or "examlenses@gmail.com"
+    if sent:
+        return {
+            "sent": True,
+            "message": f"Greetings email sent to {clean_recipient} ({dispatch_info}).",
+            "sender": sender
+        }
+    else:
+        return {
+            "sent": False,
+            "message": f"Greetings email simulated for {clean_recipient}. Delivery note: {dispatch_info}",
+            "sender": sender
+        }

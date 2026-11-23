@@ -43,3 +43,27 @@ def get_system_status(db: Session = Depends(get_db)):
             {"role": "Admin", "email": "admin@examlens.edu", "password": "examlens123", "name": "Exam Admin NIT"}
         ]
     }
+
+@router.get("/email-diagnostic")
+def email_diagnostic(recipient: str = "sharveshofficalmicro@gmail.com"):
+    import os
+    from email.mime.text import MIMEText
+    from app.services.email_service import _dispatch_smtp_email
+    
+    sender = os.getenv("SENDER_EMAIL") or "examlenses@gmail.com"
+    pw = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or "fxjyxvrinycoalby"
+    
+    msg = MIMEText(f"ExamLens live diagnostic test email to {recipient} from Render production.")
+    msg["Subject"] = "ExamLens Diagnostic Delivery Test"
+    msg["From"] = f"ExamLens <{sender}>"
+    msg["To"] = recipient
+    
+    sent, detail = _dispatch_smtp_email(msg, recipient)
+    return {
+        "success": sent,
+        "detail": detail,
+        "sender": sender,
+        "recipient": recipient,
+        "pw_configured": bool(pw),
+        "pw_length": len(pw) if pw else 0
+    }

@@ -67,17 +67,18 @@ def request_trial_otp(payload: TrialRequestOTPRequest, db: Session = Depends(get
 
     db.commit()
 
-    # Dispatch email using official sender sharveshofficialmicro@gmail.com
+    # Dispatch email using official sender
     email_result = send_otp_email(
         recipient_email=clean_email,
         recipient_name=payload.full_name or "Educator",
         otp_code=generated_otp
     )
 
-    dispatch_message = (
-        f"A real-time 6-digit verification code has been dispatched to {clean_email} from {SENDER_EMAIL}."
+    sender = os.getenv("SENDER_EMAIL") or SENDER_EMAIL or "examlenses@gmail.com"
+    dispatch_message = email_result.get("message") or (
+        f"A real-time 6-digit verification code has been dispatched to {clean_email} from {sender}."
         if email_result.get("sent")
-        else f"A 6-digit verification code has been generated from {SENDER_EMAIL} for {clean_email}."
+        else f"A 6-digit verification code has been generated from {sender} for {clean_email}."
     )
 
     return TrialRequestOTPResponse(
@@ -85,7 +86,7 @@ def request_trial_otp(payload: TrialRequestOTPRequest, db: Session = Depends(get
         message=dispatch_message,
         demo_otp=generated_otp,
         email_sent=email_result.get("sent", False),
-        sender_email=SENDER_EMAIL,
+        sender_email=sender,
         expires_in_seconds=600
     )
 
