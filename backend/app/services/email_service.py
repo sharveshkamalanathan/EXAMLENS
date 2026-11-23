@@ -52,6 +52,13 @@ def _dispatch_resend_https(recipient: str, subject: str, html_content: str, text
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return True, f"Delivered via Resend HTTPS (ID: {data.get('id', 'ok')})"
+    except urllib.error.HTTPError as he:
+        try:
+            err_data = json.loads(he.read().decode("utf-8"))
+            err_msg = err_data.get("message", str(he))
+        except Exception:
+            err_msg = str(he)
+        return False, f"Resend HTTPS ({err_msg})"
     except Exception as e:
         return False, f"Resend HTTPS API error: {str(e)}"
 
@@ -68,11 +75,13 @@ def _dispatch_email(
     2. Falls back to Gmail SMTP SSL (Port 465).
     3. Falls back to Gmail STARTTLS (Port 587).
     """
+    resend_error = None
     # 1. Try Resend HTTPS API if configured
     if os.getenv("RESEND_API_KEY") or RESEND_API_KEY:
         sent, info = _dispatch_resend_https(recipient, subject, html_content, text_content)
         if sent:
             return True, info
+        resend_error = info
 
     # 2. Try Direct SMTP (Works locally or on paid Render / standard cloud)
     pw = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or SMTP_PASSWORD or "fxjyxvrinycoalby"
@@ -80,6 +89,8 @@ def _dispatch_email(
     server_host = os.getenv("SMTP_SERVER") or SMTP_SERVER or "smtp.gmail.com"
 
     errors = []
+    if resend_error:
+        errors.append(resend_error)
 
     # Try Port 465 (Direct SSL)
     try:
