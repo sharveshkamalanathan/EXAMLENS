@@ -21,6 +21,68 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://examlens-m4ji.onrender.com")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY") or os.getenv("SENDINBLUE_API_KEY", "")
+EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
+EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID", "")
+EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY") or os.getenv("EMAILJS_USER_ID", "")
+
+def _dispatch_emailjs_https(
+    recipient: str,
+    subject: str,
+    html_content: str,
+    text_content: str,
+    recipient_name: str = "Educator",
+    otp_code: str = ""
+) -> tuple[bool, str]:
+    """
+    Sends email via EmailJS REST API over HTTPS (Port 443).
+    Bypasses cloud provider SMTP firewall blocks.
+    Requires NO phone number, NO domain, connects directly to user Gmail.
+    """
+    service_id = os.getenv("EMAILJS_SERVICE_ID") or EMAILJS_SERVICE_ID
+    template_id = os.getenv("EMAILJS_TEMPLATE_ID") or EMAILJS_TEMPLATE_ID
+    public_key = os.getenv("EMAILJS_PUBLIC_KEY") or os.getenv("EMAILJS_USER_ID") or EMAILJS_PUBLIC_KEY
+    private_key = os.getenv("EMAILJS_PRIVATE_KEY") or os.getenv("EMAILJS_ACCESS_TOKEN") or ""
+
+    if not service_id or not template_id or not public_key:
+        return False, "EMAILJS credentials not fully configured"
+
+    payload = {
+        "service_id": service_id.strip(),
+        "template_id": template_id.strip(),
+        "user_id": public_key.strip(),
+        "template_params": {
+            "to_name": recipient_name or "Educator",
+            "to_email": recipient,
+            "recipient_email": recipient,
+            "otp_code": otp_code,
+            "subject": subject,
+            "message": text_content,
+            "html_content": html_content
+        }
+    }
+    if private_key:
+        payload["accessToken"] = private_key.strip()
+
+    try:
+        req = urllib.request.Request(
+            "https://api.emailjs.com/api/v1.0/email/send",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "ExamLens/1.0"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp_body = resp.read().decode("utf-8")
+            return True, f"Delivered via EmailJS HTTPS ({resp_body or 'OK'})"
+    except urllib.error.HTTPError as he:
+        try:
+            err_data = he.read().decode("utf-8")
+        except Exception:
+            err_data = str(he)
+        return False, f"EmailJS HTTPS error ({err_data})"
+    except Exception as e:
+        return False, f"EmailJS error: {str(e)}"
 
 def _dispatch_brevo_https(recipient: str, subject: str, html_content: str, text_content: str) -> tuple[bool, str]:
     """
@@ -111,25 +173,35 @@ def _dispatch_email(
     subject: str,
     html_content: str,
     text_content: str,
-    msg: MIMEMultipart
+    msg: MIMEMultipart,
+    recipient_name: str = "Educator",
+    otp_code: str = ""
 ) -> tuple[bool, str]:
     """
     Unified email dispatcher:
-    1. Checks for Brevo HTTPS API (Port 443) - works everywhere, sends to ANY recipient without domain.
-    2. Checks for Resend HTTPS API (Port 443).
-    3. Falls back to Gmail SMTP SSL (Port 465).
-    4. Falls back to Gmail STARTTLS (Port 587).
+    1. Checks for EmailJS HTTPS API (Port 443) - zero phone number, connects to Gmail.
+    2. Checks for Brevo HTTPS API (Port 443) - sends to ANY recipient without domain.
+    3. Checks for Resend HTTPS API (Port 443).
+    4. Falls back to Gmail SMTP SSL (Port 465).
+    5. Falls back to Gmail STARTTLS (Port 587).
     """
     errors = []
 
-    # 1. Try Brevo HTTPS API if configured (Send to any email address, 100% free)
+    # 1. Try EmailJS HTTPS API if configured (No phone number, sends directly via user Gmail)
+    if os.getenv("EMAILJS_SERVICE_ID") or EMAILJS_SERVICE_ID:
+        sent, info = _dispatch_emailjs_https(recipient, subject, html_content, text_content, recipient_name=recipient_name, otp_code=otp_code)
+        if sent:
+            return True, info
+        errors.append(info)
+
+    # 2. Try Brevo HTTPS API if configured (Send to any email address, 100% free)
     if os.getenv("BREVO_API_KEY") or os.getenv("SENDINBLUE_API_KEY") or BREVO_API_KEY:
         sent, info = _dispatch_brevo_https(recipient, subject, html_content, text_content)
         if sent:
             return True, info
         errors.append(info)
 
-    # 2. Try Resend HTTPS API if configured
+    # 3. Try Resend HTTPS API if configured
     if os.getenv("RESEND_API_KEY") or RESEND_API_KEY:
         sent, info = _dispatch_resend_https(recipient, subject, html_content, text_content)
         if sent:
@@ -253,9 +325,17 @@ def send_otp_email(recipient_email: str, recipient_name: str, otp_code: str) -> 
     msg.attach(part_text)
     msg.attach(part_html)
 
-    # Attempt live email dispatch (HTTPS Resend or direct SMTP fallback)
+    # Attempt live email dispatch (HTTPS EmailJS, Brevo, Resend or direct SMTP fallback)
     text_content = part_text.get_payload()
-    sent, dispatch_info = _dispatch_email(clean_recipient, subject, html_content, text_content, msg)
+    sent, dispatch_info = _dispatch_email(
+        clean_recipient,
+        subject,
+        html_content,
+        text_content,
+        msg,
+        recipient_name=clean_name,
+        otp_code=otp_code
+    )
     if sent:
         return {
             "sent": True,
@@ -391,9 +471,17 @@ def send_login_greetings_email(
     msg.attach(part_text)
     msg.attach(part_html)
 
-    # Attempt live email dispatch (HTTPS Resend or direct SMTP fallback)
+    # Attempt live email dispatch (HTTPS EmailJS, Brevo, Resend or direct SMTP fallback)
     text_content = part_text.get_payload()
-    sent, dispatch_info = _dispatch_email(clean_recipient, subject, html_content, text_content, msg)
+    sent, dispatch_info = _dispatch_email(
+        clean_recipient,
+        subject,
+        html_content,
+        text_content,
+        msg,
+        recipient_name=clean_name,
+        otp_code=otp_code
+    )
     sender = os.getenv("SENDER_EMAIL") or "examlenses@gmail.com"
     if sent:
         return {
