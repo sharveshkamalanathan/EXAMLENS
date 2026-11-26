@@ -94,10 +94,10 @@ export const FreeTrialModal: React.FC<FreeTrialModalProps> = ({
       });
 
       if (res.success) {
-        setDemoOtp(res.demo_otp);
-        setOtpCode(res.demo_otp); // Pre-fill with demo code for effortless 1-click testing
+        setDemoOtp('');
+        setOtpCode(''); // Blank: requires user to check their email
         setEmailSent(res.email_sent);
-        setSenderEmail(res.sender_email || 'sharveshofficialmicro@gmail.com');
+        setSenderEmail(res.sender_email || 'examlenses@gmail.com');
         setCountdown(60);
         setStep('otp');
         soundEffects.playScanTick();
@@ -163,8 +163,8 @@ export const FreeTrialModal: React.FC<FreeTrialModalProps> = ({
         institution: institution.trim(),
         mobile_number: mobileNumber.trim() || undefined
       });
-      setDemoOtp(res.demo_otp);
-      setOtpCode(res.demo_otp);
+      setDemoOtp('');
+      setOtpCode('');
       setEmailSent(res.email_sent);
       setCountdown(60);
       soundEffects.playScanTick();
@@ -377,32 +377,10 @@ export const FreeTrialModal: React.FC<FreeTrialModalProps> = ({
                   Official Sender: <span className="font-mono text-brand-600 dark:text-brand-400 font-semibold">{senderEmail}</span>
                 </p>
 
-                {/* Instant Sandbox Testing Badge */}
-                {demoOtp && (
-                  <div 
-                    onClick={() => setOtpCode(demoOtp)}
-                    className="mt-3 inline-flex items-center space-x-2 px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-brand-300 dark:border-brand-700 rounded-full text-xs font-medium text-brand-700 dark:text-brand-300 shadow-sm cursor-pointer hover:bg-brand-50 dark:hover:bg-slate-700/50 transition-colors"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-brand-500 animate-pulse" />
-                    <span>Your Verification OTP: <strong className="tracking-widest font-mono text-sm">{demoOtp}</strong> (Click to auto-apply)</span>
-                  </div>
-                )}
-
-                {!emailSent && (
-                  <div className="mt-3 text-[11px] text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800/60 text-left">
-                    <span className="font-bold">Why isn't it in your mailbox yet?</span>
-                    <p className="mt-0.5 text-amber-700 dark:text-amber-300 leading-relaxed">
-                      Google requires a free 16-character <strong>Gmail App Password</strong> for <code className="font-mono">{senderEmail}</code> to deliver live emails to real inboxes. Your generated code is <strong>{demoOtp}</strong> (pre-filled below). Once you add the App Password to <code className="font-mono">backend/.env</code>, live emails will land directly in your inbox.
-                    </p>
-                  </div>
-                )}
-
-                {emailSent && (
-                  <div className="mt-3 text-[11px] text-emerald-800 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/50 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 text-left flex items-center space-x-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Live email dispatched via Gmail SMTP to your inbox from {senderEmail}. Please check your inbox or spam folder.</span>
-                  </div>
-                )}
+                <div className="mt-3 text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>A real-time 6-digit verification code has been dispatched to your email inbox. Please enter the code below to activate your workspace.</span>
+                </div>
               </div>
 
               <div>
