@@ -21,9 +21,10 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD") or
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://examlens-m4ji.onrender.com")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY") or os.getenv("SENDINBLUE_API_KEY", "")
-EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
-EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID", "")
-EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY") or os.getenv("EMAILJS_USER_ID", "")
+EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID") or "service_javpoj9"
+EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID") or "template_afsdesm"
+EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY") or os.getenv("EMAILJS_USER_ID") or "IqgCK6r0PxCtxQHeN"
+EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY") or os.getenv("EMAILJS_ACCESS_TOKEN") or "uBykCJEo6enV241M0-PSO"
 
 def _dispatch_emailjs_https(
     recipient: str,
@@ -41,7 +42,7 @@ def _dispatch_emailjs_https(
     service_id = os.getenv("EMAILJS_SERVICE_ID") or EMAILJS_SERVICE_ID
     template_id = os.getenv("EMAILJS_TEMPLATE_ID") or EMAILJS_TEMPLATE_ID
     public_key = os.getenv("EMAILJS_PUBLIC_KEY") or os.getenv("EMAILJS_USER_ID") or EMAILJS_PUBLIC_KEY
-    private_key = os.getenv("EMAILJS_PRIVATE_KEY") or os.getenv("EMAILJS_ACCESS_TOKEN") or ""
+    private_key = os.getenv("EMAILJS_PRIVATE_KEY") or os.getenv("EMAILJS_ACCESS_TOKEN") or EMAILJS_PRIVATE_KEY
 
     if not service_id or not template_id or not public_key:
         return False, "EMAILJS credentials not fully configured"
