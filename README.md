@@ -1,6 +1,8 @@
-# ExamLens — See beyond the answer.
+# ExamLens AI — See beyond the answer.
 
 > **AI-Assisted Handwritten Examination Answer Sheet Evaluation Platform for Colleges and Educational Institutions**
+> 
+> 🌐 **Live Demo Website:** [https://examlens-m4ji.onrender.com](https://examlens-m4ji.onrender.com)
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React_18_%2B_TypeScript-61DAFB.svg?style=flat&logo=react)](https://react.dev)
