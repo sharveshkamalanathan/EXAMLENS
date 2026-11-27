@@ -285,6 +285,7 @@ def send_otp_email(recipient_email: str, recipient_name: str, otp_code: str) -> 
 <body>
   <div class="container">
     <div class="header">
+      <img src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f64f/512.png" width="56" height="56" alt="🙏 Vanakkam" style="display: block; margin: 0 auto 12px auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));" />
       <h1>ExamLens Academic Evaluation</h1>
       <p>30-Day Full Institutional Trial Activation</p>
     </div>

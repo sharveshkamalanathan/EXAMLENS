@@ -6,6 +6,7 @@ from .common import (
     COLOR_CYAN, COLOR_LAVENDER, COLOR_WHITE, get_font,
     ease_out_cubic, ease_in_out_cubic, create_radial_gradient
 )
+from .presenter_animator import get_talking_presenter_image
 
 _home_screen_cache = None
 
@@ -102,61 +103,84 @@ def render_scene3(frame_idx, total_frames=300):
         sdraw.polygon([(sweep_x, 0), (sweep_x + 90, 0), (sweep_x + 30, 1080), (sweep_x - 60, 1080)], fill=(255, 255, 255, 45))
         bg.alpha_composite(sweep_overlay)
         
-    # PART B: 3D Perspective Showcase of ExamLens Website (Frames 70 to 300)
+    # PART B: 3D Perspective Showcase of ExamLens Website with Talking Presenter (Frames 70 to 300)
     if frame_idx >= 70:
-        ui_prog = min(1.0, (frame_idx - 70) / 45.0)
+        ui_prog = min(1.0, (frame_idx - 70) / 35.0)
         ease_ui = ease_out_cubic(ui_prog)
         
         browser = get_home_screenshot()
         
-        # Floating window position with subtle camera rise
-        win_y = int(680 - 480 * ease_ui + math.sin(t_sec * 1.5) * 6)
-        win_x = (1920 - browser.width) // 2
+        # Floating window positioned on left-center (1200 x 720)
+        scale_b = 0.90
+        bw = int(browser.width * scale_b)
+        bh = int(browser.height * scale_b)
+        b_scaled = browser.resize((bw, bh), Image.Resampling.LANCZOS)
+        
+        win_y = int(580 - 400 * ease_ui + math.sin(t_sec * 1.5) * 5)
+        win_x = int(60 + 40 * ease_ui)
         
         # Window Drop Shadow
         shadow_overlay = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
         sdraw = ImageDraw.Draw(shadow_overlay)
-        sdraw.rounded_rectangle([win_x - 16, win_y - 12, win_x + browser.width + 16, win_y + browser.height + 35], radius=24, fill=(5, 8, 16, int(180 * ease_ui)))
+        sdraw.rounded_rectangle([win_x - 14, win_y - 10, win_x + bw + 14, win_y + bh + 25], radius=20, fill=(5, 8, 16, int(190 * ease_ui)))
         bg.alpha_composite(shadow_overlay)
         
-        # Paste browser mockup
-        bg.alpha_composite(browser, (win_x, win_y))
+        # Paste browser mockup as the presenter's background
+        bg.alpha_composite(b_scaled, (win_x, win_y))
         
         # Floating Top Banner: "AI-ASSISTED EXAMINATION EVALUATION"
-        if frame_idx >= 110:
-            b_prog = min(1.0, (frame_idx - 110) / 25.0)
+        if frame_idx >= 95:
+            b_prog = min(1.0, (frame_idx - 95) / 20.0)
             banner_alpha = int(255 * b_prog)
             
-            ban_w, ban_h = 720, 56
-            ban_x = (1920 - ban_w) // 2
+            ban_w, ban_h = 640, 50
+            ban_x = 80
             ban_y = 60
             
-            draw.rounded_rectangle([ban_x, ban_y, ban_x + ban_w, ban_y + ban_h], radius=16, fill=(18, 24, 45, int(220 * b_prog)), outline=(81, 69, 229, banner_alpha), width=2)
-            ban_font = get_font(22, bold=True)
-            draw.text((ban_x + 50, ban_y + 14), "TRANSFORMING ACADEMIC ASSESSMENTS", fill=(238, 242, 255, banner_alpha), font=ban_font)
+            draw.rounded_rectangle([ban_x, ban_y, ban_x + ban_w, ban_y + ban_h], radius=14, fill=(18, 24, 45, int(220 * b_prog)), outline=(81, 69, 229, banner_alpha), width=2)
+            ban_font = get_font(20, bold=True)
+            draw.text((ban_x + 35, ban_y + 12), "TRANSFORMING ACADEMIC ASSESSMENTS", fill=(238, 242, 255, banner_alpha), font=ban_font)
             
-        # Floating Feature Badges around the browser (Frames 150+)
+        # Floating Feature Badges (Left Column)
         badges = [
-            (140, 140, 320, "⚡ UNIVERSAL OCR", "Any Handwriting Style"),
-            (170, 1420, 480, "🎯 CONCEPT MARKING", "Semantic Rubric Grading"),
-            (200, 140, 680, "🛡️ FACULTY VERIFIED", "100% Educator Control")
+            (115, 80, 780, "⚡ UNIVERSAL OCR", "Any Handwriting Style"),
+            (150, 440, 780, "🎯 CONCEPT MARKING", "Semantic Rubric Grading"),
+            (185, 800, 780, "🛡️ FACULTY VERIFIED", "100% Educator Control")
         ]
         for trigger_f, bx, by, b_title, b_sub in badges:
             if frame_idx >= trigger_f:
-                b_p = min(1.0, (frame_idx - trigger_f) / 20.0)
+                b_p = min(1.0, (frame_idx - trigger_f) / 18.0)
                 e_bp = ease_out_cubic(b_p)
                 b_alpha = int(255 * e_bp)
                 
-                cur_bx = int(bx + (30 if bx > 960 else -30) * (1.0 - e_bp))
-                bw, bh = 340, 72
-                
+                bw_box, bh_box = 320, 68
                 b_overlay = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
                 bdraw = ImageDraw.Draw(b_overlay)
-                bdraw.rounded_rectangle([cur_bx, by, cur_bx + bw, by + bh], radius=12, fill=(15, 20, 36, int(220 * e_bp)), outline=(6, 182, 212, int(190 * e_bp)), width=2)
+                bdraw.rounded_rectangle([bx, by, bx + bw_box, by + bh_box], radius=12, fill=(15, 20, 36, int(230 * e_bp)), outline=(6, 182, 212, int(190 * e_bp)), width=2)
                 bg.alpha_composite(b_overlay)
                 
-                draw.text((cur_bx + 20, by + 12), b_title, fill=(6, 182, 212, b_alpha), font=get_font(18, bold=True))
-                draw.text((cur_bx + 20, by + 40), b_sub, fill=(225, 230, 245, int(b_alpha * 0.9)), font=get_font(15, regular=True))
+                draw.text((bx + 16, by + 10), b_title, fill=(6, 182, 212, b_alpha), font=get_font(16, bold=True))
+                draw.text((bx + 16, by + 34), b_sub, fill=(225, 230, 245, int(b_alpha * 0.9)), font=get_font(14, regular=True))
+
+        # FOREGROUND TALKING PRESENTER (Right Side, explaining the website!)
+        global_f = 510 + frame_idx
+        pres_p = min(1.0, (frame_idx - 70) / 25.0)
+        e_pres = ease_out_cubic(pres_p)
+        
+        pres_h = 980
+        pres_img, sx, sy = get_talking_presenter_image(global_f, height=pres_h)
+        
+        px = int(980 + 70 * (1.0 - e_pres) + sx)
+        py = int(100 + sy)
+        
+        # Soft ambient rim light
+        glow = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+        gdraw = ImageDraw.Draw(glow)
+        gdraw.ellipse([px + 80, py + 40, px + pres_img.width - 80, py + pres_h - 80], fill=(81, 69, 229, int(35 * e_pres)))
+        bg.alpha_composite(glow)
+        
+        # Paste talking presenter
+        bg.alpha_composite(pres_img, (px, py))
                 
     # Transition to Scene 4 (Frames 285-300): Cyan laser wipe
     if frame_idx >= 285:

@@ -11,7 +11,7 @@ class TrialRequestOTPRequest(BaseModel):
 class TrialRequestOTPResponse(BaseModel):
     success: bool
     message: str
-    demo_otp: str = Field(..., description="Demo OTP for instant sandboxed testing")
+    demo_otp: Optional[str] = Field(None, description="Demo OTP for instant sandboxed testing")
     email_sent: bool = Field(False, description="Whether live SMTP delivered to email")
     sender_email: str = "examlenses@gmail.com"
     expires_in_seconds: int = 600

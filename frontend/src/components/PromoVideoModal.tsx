@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { X, Play, Sparkles, CheckCircle2, ShieldCheck, ExternalLink, Download } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Play, Sparkles, CheckCircle2, ShieldCheck, ExternalLink, Download, Volume2, VolumeX } from 'lucide-react';
 
 interface PromoVideoModalProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   onOpenTrial
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -23,8 +24,16 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
       document.body.style.overflow = 'hidden';
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
+        videoRef.current.muted = false;
+        videoRef.current.volume = 1.0;
+        setIsMuted(false);
         videoRef.current.play().catch(() => {
-          // Autoplay policy fallback
+          // Fallback if browser requires muted autoplay
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            setIsMuted(true);
+            videoRef.current.play();
+          }
         });
       }
     } else {
@@ -38,6 +47,14 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
+
+  const handleUnmute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = false;
+      videoRef.current.volume = 1.0;
+      setIsMuted(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -102,6 +119,18 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
           >
             Your browser does not support the video tag.
           </video>
+
+          {/* Floating Unmute Prompt if browser forced muted autoplay */}
+          {isMuted && (
+            <button
+              type="button"
+              onClick={handleUnmute}
+              className="absolute top-4 left-4 z-20 px-4 py-2 rounded-xl bg-indigo-600/95 hover:bg-indigo-500 text-white text-xs font-bold shadow-xl shadow-indigo-900/50 flex items-center space-x-2 animate-pulse cursor-pointer border border-indigo-400/40"
+            >
+              <VolumeX className="w-4 h-4 text-amber-300" />
+              <span>Click to Unmute Audio & Music</span>
+            </button>
+          )}
         </div>
 
         {/* Storyboard Highlights Bar & CTA */}

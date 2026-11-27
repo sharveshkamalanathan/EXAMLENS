@@ -6,6 +6,7 @@ from .common import (
     COLOR_WHITE, COLOR_LAVENDER, get_font, ease_out_cubic,
     ease_in_out_cubic, create_radial_gradient
 )
+from .presenter_animator import get_talking_presenter_image
 
 _paper_stack_cache = None
 
@@ -79,20 +80,20 @@ def render_scene2(frame_idx, total_frames=270):
         bg.alpha_composite(shadow, (pos_x + 12, pos_y + 16))
         bg.alpha_composite(p_img, (pos_x, pos_y))
         
-    # Animated Ticking Clock (Right Top: representing precious hours slipping away)
-    clock_cx = 1450
-    clock_cy = 280
-    clock_r = 90
+    # Animated Ticking Clock (Center-top: representing precious hours slipping away)
+    clock_cx = 880
+    clock_cy = 160
+    clock_r = 75
     
     # Outer clock bezel with soft glow
-    draw.ellipse([clock_cx - clock_r - 8, clock_cy - clock_r - 8, clock_cx + clock_r + 8, clock_cy + clock_r + 8], fill=(25, 18, 30, 180), outline=(225, 29, 72, 160), width=3)
+    draw.ellipse([clock_cx - clock_r - 6, clock_cy - clock_r - 6, clock_cx + clock_r + 6, clock_cy + clock_r + 6], fill=(25, 18, 30, 180), outline=(225, 29, 72, 160), width=3)
     draw.ellipse([clock_cx - clock_r, clock_cy - clock_r, clock_cx + clock_r, clock_cy + clock_r], fill=(15, 20, 32, 220), outline=(255, 255, 255, 40), width=2)
     
     # Clock tick marks
     for deg in range(0, 360, 30):
         rad = math.radians(deg)
-        x_in = clock_cx + (clock_r - 12) * math.sin(rad)
-        y_in = clock_cy - (clock_r - 12) * math.cos(rad)
+        x_in = clock_cx + (clock_r - 10) * math.sin(rad)
+        y_in = clock_cy - (clock_r - 10) * math.cos(rad)
         x_out = clock_cx + clock_r * math.sin(rad)
         y_out = clock_cy - clock_r * math.cos(rad)
         draw.line([(x_in, y_in), (x_out, y_out)], fill=(200, 210, 230, 160), width=2)
@@ -104,52 +105,70 @@ def render_scene2(frame_idx, total_frames=270):
     # Minute hand
     draw.line([
         (clock_cx, clock_cy),
-        (clock_cx + (clock_r - 25) * math.sin(hand_angle_min), clock_cy - (clock_r - 25) * math.cos(hand_angle_min))
-    ], fill=(255, 255, 255, 230), width=4)
+        (clock_cx + (clock_r - 20) * math.sin(hand_angle_min), clock_cy - (clock_r - 20) * math.cos(hand_angle_min))
+    ], fill=(255, 255, 255, 230), width=3)
     # Second hand (Crimson)
     draw.line([
         (clock_cx, clock_cy),
-        (clock_cx + (clock_r - 10) * math.sin(hand_angle_sec), clock_cy - (clock_r - 10) * math.cos(hand_angle_sec))
+        (clock_cx + (clock_r - 8) * math.sin(hand_angle_sec), clock_cy - (clock_r - 8) * math.cos(hand_angle_sec))
     ], fill=(225, 29, 72, 255), width=2)
-    draw.ellipse([clock_cx - 5, clock_cy - 5, clock_cx + 5, clock_cy + 5], fill=(225, 29, 72, 255))
+    draw.ellipse([clock_cx - 4, clock_cy - 4, clock_cx + 4, clock_cy + 4], fill=(225, 29, 72, 255))
     
-    # Problem Callout Cards (Right Column)
+    # Problem Callout Cards (Bottom-Left Area)
     callouts = [
-        (35, "⚠️  THE PROBLEM", "TRADITIONAL EVALUATION BOTTLENECK", COLOR_AMBER),
-        (75, "⏳  200+ HOURS WASTED", "Exhausting manual repetitive marking per term", COLOR_ROSE),
-        (120, "📉  HUMAN GRADING FATIGUE", "Cognitive overload leads to marking inconsistencies", COLOR_ROSE),
-        (165, "⏱️  DELAYED FEEDBACK", "Students wait weeks to discover learning gaps", COLOR_AMBER)
+        (30, "⚠️  THE PROBLEM", "TRADITIONAL EVALUATION BOTTLENECK", COLOR_AMBER),
+        (65, "⏳  200+ HOURS WASTED", "Exhausting manual repetitive marking per term", COLOR_ROSE),
+        (105, "📉  HUMAN GRADING FATIGUE", "Cognitive overload leads to marking inconsistencies", COLOR_ROSE),
+        (145, "⏱️  DELAYED FEEDBACK", "Students wait weeks to discover learning gaps", COLOR_AMBER)
     ]
     
-    card_base_x = 1080
+    card_base_x = 80
     for trigger_f, title, subtitle, accent_col in callouts:
         if frame_idx >= trigger_f:
-            c_prog = min(1.0, (frame_idx - trigger_f) / 20.0)
+            c_prog = min(1.0, (frame_idx - trigger_f) / 18.0)
             ease_c = ease_out_cubic(c_prog)
             
-            card_y = int(430 + (trigger_f - 35) * 1.7)
-            card_w = 700
-            card_h = 82
+            card_y = int(580 + (trigger_f - 30) * 1.05)
+            card_w = 640
+            card_h = 72
             
-            # Slide in from right
-            card_x = int(card_base_x + 80 * (1.0 - ease_c))
+            card_x = int(card_base_x + 60 * (1.0 - ease_c))
             alpha = int(255 * ease_c)
             
-            # Card background
             card_overlay = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
             cdraw = ImageDraw.Draw(card_overlay)
             cdraw.rounded_rectangle(
                 [card_x, card_y, card_x + card_w, card_y + card_h],
-                radius=14,
-                fill=(18, 22, 34, int(210 * ease_c)),
+                radius=12,
+                fill=(18, 22, 34, int(220 * ease_c)),
                 outline=(accent_col[0], accent_col[1], accent_col[2], int(180 * ease_c)),
                 width=2
             )
             bg.alpha_composite(card_overlay)
             
-            # Text
-            draw.text((card_x + 24, card_y + 12), title, fill=(accent_col[0], accent_col[1], accent_col[2], alpha), font=get_font(20, bold=True))
-            draw.text((card_x + 24, card_y + 42), subtitle, fill=(220, 225, 240, int(alpha * 0.9)), font=get_font(18, regular=True))
+            draw.text((card_x + 20, card_y + 10), title, fill=(accent_col[0], accent_col[1], accent_col[2], alpha), font=get_font(18, bold=True))
+            draw.text((card_x + 20, card_y + 36), subtitle, fill=(220, 225, 240, int(alpha * 0.9)), font=get_font(15, regular=True))
+
+    # FOREGROUND TALKING PRESENTER (Right Side, with background showing the evaluation problem!)
+    global_f = 240 + frame_idx
+    pres_p = min(1.0, frame_idx / 25.0)
+    e_pres = ease_out_cubic(pres_p)
+    
+    pres_h = 960
+    pres_img, sx, sy = get_talking_presenter_image(global_f, height=pres_h)
+    
+    # Slide in slightly from right
+    px = int(880 + 80 * (1.0 - e_pres) + sx)
+    py = int(120 + sy)
+    
+    # Subtle rim glow behind presenter
+    glow_overlay = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+    gdraw = ImageDraw.Draw(glow_overlay)
+    gdraw.ellipse([px + 100, py + 50, px + pres_img.width - 100, py + pres_h - 100], fill=(81, 69, 229, int(35 * e_pres)))
+    bg.alpha_composite(glow_overlay)
+    
+    # Paste talking presenter
+    bg.alpha_composite(pres_img, (px, py))
             
     # Transition to Scene 3 (Frames 255-270): Fade to black / indigo flash
     if frame_idx >= 255:

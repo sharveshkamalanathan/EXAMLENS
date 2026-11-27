@@ -6,21 +6,11 @@ from .common import (
     COLOR_CYAN, COLOR_LAVENDER, COLOR_WHITE, get_font,
     ease_out_cubic, ParticleField, create_radial_gradient
 )
+from .presenter_animator import get_talking_presenter_image
 
-_presenter_cache = None
 _paper_cache = None
 _bg_cache = None
 _particles = ParticleField(count=45)
-
-def get_presenter():
-    global _presenter_cache
-    if _presenter_cache is None:
-        path = "promo_video/assets/presenter/presenter_hero_studio_1795682171312.jpg"
-        img = Image.open(path).convert("RGBA")
-        # Upscale to 2016 x 1134 (1.05x) for ultra-fast zero-resize zoom cropping
-        img = img.resize((2016, 1134), Image.Resampling.LANCZOS)
-        _presenter_cache = img
-    return _presenter_cache
 
 def get_floating_papers():
     global _paper_cache
@@ -52,28 +42,21 @@ def render_scene1(frame_idx, total_frames=240):
         color_center=(28, 32, 70), color_edge=(8, 11, 20)
     ).convert("RGBA")
     
-    # Presenter layer with ultra-fast zero-resize zoom cropping
-    pres = get_presenter()
-    # Interpolate crop size from (2016, 1134) down to (1920, 1080)
-    zoom_t = ease_out_cubic(progress)
-    cw = int(2016 - 96 * zoom_t)
-    ch = int(1134 - 54 * zoom_t)
+    # Talking Presenter layer with real-time lip sync & eye blinking
+    pres_h = int(1080 * (1.0 + 0.04 * ease_out_cubic(progress)))
+    pres_img, sx, sy = get_talking_presenter_image(frame_idx, height=pres_h)
     
-    # Slight breathing sway
-    breathing_offset_y = int(3.0 * math.sin(t_sec * 2.2))
-    breathing_offset_x = int(1.5 * math.cos(t_sec * 1.5))
-    
-    cx = (2016 - cw) // 2 + breathing_offset_x
-    cy = (1134 - ch) // 2 + breathing_offset_y
-    pres_cropped = pres.crop((cx, cy, cx + cw, cy + ch)).resize((1920, 1080), Image.Resampling.BILINEAR)
+    # Center crop / paste onto 1920x1080
+    px = (1920 - pres_img.width) // 2 + sx
+    py = (1080 - pres_h) // 2 + sy
     
     # Fade in presenter over first 20 frames
     alpha_reveal = min(1.0, frame_idx / 20.0)
     if alpha_reveal < 1.0:
-        enhancer = Image.new("RGBA", (1920, 1080), (0, 0, 0, int(255 * (1.0 - alpha_reveal))))
-        pres_cropped.alpha_composite(enhancer)
+        enhancer = Image.new("RGBA", pres_img.size, (0, 0, 0, int(255 * (1.0 - alpha_reveal))))
+        pres_img.alpha_composite(enhancer)
         
-    bg.alpha_composite(pres_cropped)
+    bg.alpha_composite(pres_img, (px, py))
     
     # Floating examination papers entering from 2.5s (frame 75)
     papers = get_floating_papers()

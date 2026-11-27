@@ -7,18 +7,9 @@ from .common import (
     get_font, ease_out_cubic, ease_in_out_cubic, ParticleField,
     create_radial_gradient
 )
+from .presenter_animator import get_talking_presenter_image
 
-_presenter_cache = None
 _particles = ParticleField(count=55)
-
-def get_presenter():
-    global _presenter_cache
-    if _presenter_cache is None:
-        path = "promo_video/assets/presenter/presenter_hero_studio_1795682171312.jpg"
-        img = Image.open(path).convert("RGBA")
-        img = img.resize((2073, 1166), Image.Resampling.LANCZOS)
-        _presenter_cache = img
-    return _presenter_cache
 
 def render_scene6(frame_idx, total_frames=255):
     t_sec = frame_idx / 30.0
@@ -33,25 +24,25 @@ def render_scene6(frame_idx, total_frames=255):
     
     draw = ImageDraw.Draw(bg)
     
-    # PART A: PRESENTER WRAP-UP (Frames 0 to 110)
+    # PART A: PRESENTER WRAP-UP (Frames 0 to 125)
     if frame_idx < 125:
-        # Smooth camera pullback (scale 1.08 -> 1.00)
+        # Smooth camera pullback (scale 1.06 -> 1.00)
         pullback_p = min(1.0, frame_idx / 110.0)
         e_p = ease_out_cubic(pullback_p)
         
-        presenter = get_presenter()
-        cw = int(1920 + 153 * (1.0 - e_p))
-        ch = int(1080 + 86 * (1.0 - e_p))
-        cx = (2073 - cw) // 2
-        cy = (1166 - ch) // 2
-        pres_cropped = presenter.crop((cx, cy, cx + cw, cy + ch)).resize((1920, 1080), Image.Resampling.BILINEAR)
+        global_f = 1545 + frame_idx
+        pres_h = int(1080 * (1.06 - 0.06 * e_p))
+        pres_img, sx, sy = get_talking_presenter_image(global_f, height=pres_h)
         
-        # Presenter fade-out towards transition to final screen
+        px = (1920 - pres_img.width) // 2 + sx
+        py = (1080 - pres_h) // 2 + sy
+        
+        # Presenter fade-out towards transition to final brand screen
         if frame_idx >= 100:
             fade_out = min(1.0, (frame_idx - 100) / 25.0)
-            pres_cropped.putalpha(int(255 * (1.0 - fade_out)))
+            pres_img.putalpha(int(255 * (1.0 - fade_out)))
             
-        bg.alpha_composite(pres_cropped)
+        bg.alpha_composite(pres_img, (px, py))
         _particles.draw(bg, frame_idx)
         
         # Sequential Kinetic Slogans

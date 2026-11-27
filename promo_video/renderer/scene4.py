@@ -6,6 +6,7 @@ from .common import (
     COLOR_CYAN, COLOR_EMERALD, COLOR_LAVENDER, COLOR_WHITE,
     get_font, ease_out_cubic, ease_in_out_cubic, create_radial_gradient
 )
+from .presenter_animator import get_talking_presenter_image
 
 _paper_scan_cache = None
 
@@ -14,10 +15,8 @@ def get_answer_sheet():
     if _paper_scan_cache is None:
         p = "promo_video/assets/exam_papers/scan_STU-1024.jpg"
         im = Image.open(p).convert("RGBA")
-        # Resize to fit left-side viewport (760 x 900)
-        card = im.resize((760, 900), Image.Resampling.LANCZOS)
-        # Add sleek border
-        frame = Image.new("RGBA", (776, 916), (230, 235, 245, 255))
+        card = im.resize((560, 860), Image.Resampling.LANCZOS)
+        frame = Image.new("RGBA", (576, 876), (230, 235, 245, 255))
         frame.paste(card, (8, 8))
         _paper_scan_cache = frame
     return _paper_scan_cache
@@ -79,89 +78,80 @@ def render_scene4(frame_idx, total_frames=360):
         pdraw.text((38, 488), "FORMULA VERIFIED: dS >= dQ/T", fill=(11, 15, 23, 255), font=get_font(13, bold=True))
         
     # Drop shadow behind answer sheet
-    paper_x = 90
-    paper_y = 115
+    paper_x = 50
+    paper_y = 120
     shadow_overlay = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
     sdraw = ImageDraw.Draw(shadow_overlay)
-    sdraw.rounded_rectangle([paper_x - 12, paper_y - 10, paper_x + paper.width + 12, paper_y + paper.height + 20], radius=20, fill=(4, 8, 16, 190))
+    sdraw.rounded_rectangle([paper_x - 12, paper_y - 10, paper_x + paper.width + 12, paper_y + paper.height + 20], radius=18, fill=(4, 8, 16, 190))
     bg.alpha_composite(shadow_overlay)
     bg.alpha_composite(paper, (paper_x, paper_y))
     
-    # 2. RIGHT SIDE: Floating AI Evaluation & Semantic Rubric Panel
-    panel_x = 910
-    panel_y = 115
-    panel_w = 920
-    panel_h = 916
+    # 2. CENTER PANEL: Floating AI Evaluation & Semantic Rubric Panel (620 wide)
+    panel_x = 650
+    panel_y = 120
+    panel_w = 600
+    panel_h = 876
     
     panel_overlay = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
     pndraw = ImageDraw.Draw(panel_overlay)
     
-    # Main Glassmorphic Panel
-    pndraw.rounded_rectangle([panel_x, panel_y, panel_x + panel_w, panel_y + panel_h], radius=18, fill=(16, 22, 38, 225), outline=(81, 69, 229, 190), width=2)
+    pndraw.rounded_rectangle([panel_x, panel_y, panel_x + panel_w, panel_y + panel_h], radius=16, fill=(16, 22, 38, 225), outline=(81, 69, 229, 190), width=2)
     
     # Top Header inside Panel
-    pndraw.text((panel_x + 35, panel_y + 30), "AI EVALUATION ENGINE", fill=(129, 140, 248, 255), font=get_font(16, bold=True))
-    pndraw.text((panel_x + 35, panel_y + 55), "Live Conceptual Marking & Rubrics", fill=(255, 255, 255, 255), font=get_font(28, bold=True))
+    pndraw.text((panel_x + 30, panel_y + 24), "AI EVALUATION ENGINE", fill=(129, 140, 248, 255), font=get_font(15, bold=True))
+    pndraw.text((panel_x + 30, panel_y + 48), "Live Conceptual Marking", fill=(255, 255, 255, 255), font=get_font(24, bold=True))
     
     # Score Summary Card
-    # Smooth score count up: 0 to 9.5
     score_val = min(9.5, 9.5 * ease_out_cubic(frame_idx / 120.0))
-    
-    score_box_x = panel_x + 35
-    score_box_y = panel_y + 115
-    score_box_w = panel_w - 70
-    score_box_h = 135
+    score_box_x = panel_x + 30
+    score_box_y = panel_y + 95
+    score_box_w = panel_w - 60
+    score_box_h = 120
     
     pndraw.rounded_rectangle([score_box_x, score_box_y, score_box_x + score_box_w, score_box_y + score_box_h], radius=14, fill=(22, 30, 52, 230), outline=(16, 185, 129, 160), width=2)
-    
-    # Large Animated Score Text
-    pndraw.text((score_box_x + 30, score_box_y + 25), f"{score_val:.1f}", fill=(16, 185, 129, 255), font=get_font(64, bold=True))
-    pndraw.text((score_box_x + 160, score_box_y + 48), "/ 10 MARKS", fill=(160, 175, 205, 240), font=get_font(22, bold=True))
-    pndraw.text((score_box_x + 30, score_box_y + 98), "GRADE: A  •  PERCENTILE: 94th  •  HIGH CONFIDENCE", fill=(199, 210, 254, 230), font=get_font(15, bold=True))
-    
-    # Animated score progress ring / bar
-    bar_x = score_box_x + score_box_w - 280
-    bar_y = score_box_y + 50
-    bar_w = 240
-    pndraw.rounded_rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + 14], radius=7, fill=(11, 15, 25, 255))
-    fill_w = int(bar_w * (score_val / 10.0))
-    if fill_w > 0:
-        pndraw.rounded_rectangle([bar_x, bar_y, bar_x + fill_w, bar_y + 14], radius=7, fill=(16, 185, 129, 255))
-    pndraw.text((bar_x, bar_y - 24), "Rubric Match: 95%", fill=(16, 185, 129, 255), font=get_font(14, bold=True))
+    pndraw.text((score_box_x + 24, score_box_y + 20), f"{score_val:.1f}", fill=(16, 185, 129, 255), font=get_font(56, bold=True))
+    pndraw.text((score_box_x + 140, score_box_y + 42), "/ 10 MARKS", fill=(160, 175, 205, 240), font=get_font(19, bold=True))
+    pndraw.text((score_box_x + 24, score_box_y + 85), "GRADE: A  •  PERCENTILE: 94th", fill=(199, 210, 254, 230), font=get_font(14, bold=True))
     
     # Rubric Items Breakdown
     rubrics = [
-        (40, "1. Conceptual Understanding", "4.0 / 4.0", "Accurately articulates Clausius inequality & entropy increase.", COLOR_EMERALD),
-        (80, "2. Mathematical Formulation", "3.5 / 4.0", "Correct differential equation; partial credit (+1.5) for step logic.", COLOR_CYAN),
-        (120, "3. Physical Interpretation", "2.0 / 2.0", "Clear practical example of reversible vs irreversible cycles.", COLOR_EMERALD)
+        (35, "1. Conceptual Understanding", "4.0 / 4.0", "Clausius inequality & entropy increase.", COLOR_EMERALD),
+        (75, "2. Mathematical Formulation", "3.5 / 4.0", "Partial credit (+1.5) for step logic.", COLOR_CYAN),
+        (115, "3. Physical Interpretation", "2.0 / 2.0", "Reversible vs irreversible cycle.", COLOR_EMERALD)
     ]
     
-    ry = score_box_y + 160
+    ry = score_box_y + 140
     for trigger_f, r_title, r_score, r_desc, r_col in rubrics:
         if frame_idx >= trigger_f:
-            r_prog = min(1.0, (frame_idx - trigger_f) / 20.0)
+            r_prog = min(1.0, (frame_idx - trigger_f) / 18.0)
             e_r = ease_out_cubic(r_prog)
             
-            pndraw.rounded_rectangle([score_box_x, ry, score_box_x + score_box_w, ry + 95], radius=12, fill=(20, 28, 48, int(220 * e_r)), outline=(r_col[0], r_col[1], r_col[2], int(160 * e_r)), width=2)
+            pndraw.rounded_rectangle([score_box_x, ry, score_box_x + score_box_w, ry + 88], radius=12, fill=(20, 28, 48, int(220 * e_r)), outline=(r_col[0], r_col[1], r_col[2], int(160 * e_r)), width=2)
+            pndraw.text((score_box_x + 20, ry + 12), r_title, fill=(255, 255, 255, int(255 * e_r)), font=get_font(17, bold=True))
+            pndraw.text((score_box_x + score_box_w - 120, ry + 12), r_score, fill=(r_col[0], r_col[1], r_col[2], int(255 * e_r)), font=get_font(18, bold=True))
+            pndraw.text((score_box_x + 20, ry + 42), r_desc, fill=(190, 200, 220, int(230 * e_r)), font=get_font(14, regular=True))
             
-            pndraw.text((score_box_x + 24, ry + 14), r_title, fill=(255, 255, 255, int(255 * e_r)), font=get_font(19, bold=True))
-            pndraw.text((score_box_x + score_box_w - 140, ry + 14), r_score, fill=(r_col[0], r_col[1], r_col[2], int(255 * e_r)), font=get_font(20, bold=True))
-            pndraw.text((score_box_x + 24, ry + 48), r_desc, fill=(190, 200, 220, int(230 * e_r)), font=get_font(16, regular=True))
-            
-        ry += 115
+        ry += 105
         
-    # Bottom Capability Badges
-    pills = [
-        ("UNIVERSAL OCR", COLOR_CYAN),
-        ("SEMANTIC REASONING", COLOR_INDIGO_LIGHT),
-        ("PARTIAL CREDIT LOGIC", COLOR_EMERALD)
-    ]
-    px = score_box_x
-    for p_name, p_color in pills:
-        pw = 265
-        pndraw.rounded_rectangle([px, ry + 25, px + pw, ry + 68], radius=21, fill=(18, 25, 44, 240), outline=(p_color[0], p_color[1], p_color[2], 200), width=2)
-        pndraw.text((px + 22, ry + 36), f"✓ {p_name}", fill=(p_color[0], p_color[1], p_color[2], 255), font=get_font(15, bold=True))
-        px += pw + 25
+    bg.alpha_composite(panel_overlay)
+
+    # 3. FOREGROUND TALKING PRESENTER (Right Side, with background showing the AI evaluation!)
+    global_f = 810 + frame_idx
+    pres_p = min(1.0, frame_idx / 25.0)
+    e_pres = ease_out_cubic(pres_p)
+    
+    pres_h = 980
+    pres_img, sx, sy = get_talking_presenter_image(global_f, height=pres_h)
+    
+    px = int(1050 + 60 * (1.0 - e_pres) + sx)
+    py = int(100 + sy)
+    
+    glow = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+    gdraw = ImageDraw.Draw(glow)
+    gdraw.ellipse([px + 80, py + 40, px + pres_img.width - 80, py + pres_h - 80], fill=(81, 69, 229, int(35 * e_pres)))
+    bg.alpha_composite(glow)
+    
+    bg.alpha_composite(pres_img, (px, py))
         
     bg.alpha_composite(panel_overlay)
     

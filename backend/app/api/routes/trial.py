@@ -85,7 +85,7 @@ def request_trial_otp(payload: TrialRequestOTPRequest, db: Session = Depends(get
     return TrialRequestOTPResponse(
         success=True,
         message=dispatch_message,
-        demo_otp=generated_otp,
+        demo_otp="",
         email_sent=email_result.get("sent", False),
         sender_email=sender,
         expires_in_seconds=600
