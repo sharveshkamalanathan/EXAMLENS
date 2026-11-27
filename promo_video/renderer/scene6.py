@@ -32,7 +32,7 @@ def render_scene6(frame_idx, total_frames=255):
         
         global_f = 1545 + frame_idx
         pres_h = int(1080 * (1.06 - 0.06 * e_p))
-        pres_img, sx, sy = get_talking_presenter_image(global_f, height=pres_h)
+        pres_img, sx, sy = get_talking_presenter_image(global_f, height=pres_h, cutout=False)
         
         px = (1920 - pres_img.width) // 2 + sx
         py = (1080 - pres_h) // 2 + sy
@@ -45,17 +45,20 @@ def render_scene6(frame_idx, total_frames=255):
         bg.alpha_composite(pres_img, (px, py))
         _particles.draw(bg, frame_idx)
         
-        # Sequential Kinetic Slogans
+        # Sequential Kinetic Slogans (Clean, non-overlapping)
         slogans = [
-            (10, "LESS MANUAL EFFORT.", COLOR_CYAN),
-            (40, "SMARTER EVALUATION.", COLOR_INDIGO_LIGHT),
-            (70, "MORE TIME FOR EDUCATION.", COLOR_EMERALD)
+            (10, 38, "LESS MANUAL EFFORT.", COLOR_CYAN),
+            (40, 68, "SMARTER EVALUATION.", COLOR_INDIGO_LIGHT),
+            (70, 98, "MORE TIME FOR EDUCATION.", COLOR_EMERALD)
         ]
         
         slogan_y = 920
-        for trigger_f, s_text, s_col in slogans:
-            if frame_idx >= trigger_f and frame_idx < trigger_f + 45:
-                s_prog = min(1.0, (frame_idx - trigger_f) / 12.0)
+        for start_f, end_f, s_text, s_col in slogans:
+            if frame_idx >= start_f and frame_idx < end_f:
+                s_prog = min(1.0, (frame_idx - start_f) / 10.0)
+                # Fade out over last 5 frames
+                if frame_idx >= end_f - 5:
+                    s_prog = min(s_prog, (end_f - frame_idx) / 5.0)
                 e_s = ease_out_cubic(s_prog)
                 
                 # Floating glass bar

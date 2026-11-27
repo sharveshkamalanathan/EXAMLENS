@@ -42,9 +42,9 @@ def render_scene1(frame_idx, total_frames=240):
         color_center=(28, 32, 70), color_edge=(8, 11, 20)
     ).convert("RGBA")
     
-    # Talking Presenter layer with real-time lip sync & eye blinking
+    # Talking Presenter layer with real-time lip sync & eye blinking (full studio frame)
     pres_h = int(1080 * (1.0 + 0.04 * ease_out_cubic(progress)))
-    pres_img, sx, sy = get_talking_presenter_image(frame_idx, height=pres_h)
+    pres_img, sx, sy = get_talking_presenter_image(frame_idx, height=pres_h, cutout=False)
     
     # Center crop / paste onto 1920x1080
     px = (1920 - pres_img.width) // 2 + sx
@@ -65,18 +65,22 @@ def render_scene1(frame_idx, total_frames=240):
         ease_p = ease_out_cubic(paper_prog)
         
         # Left foreground paper (drifting in from left-bottom)
-        p1 = papers[0].rotate(12.0 + math.sin(t_sec * 1.2) * 2.5, expand=True, resample=Image.Resampling.BILINEAR)
+        p1 = papers[0].rotate(12.0 + math.sin(t_sec * 1.2) * 2.5, expand=True, resample=Image.Resampling.BILINEAR, fillcolor=(0,0,0,0))
         p1_x = int(-120 + 260 * ease_p + math.sin(t_sec * 1.4) * 8)
         p1_y = int(580 - 140 * ease_p + math.cos(t_sec * 1.2) * 8)
-        # Apply gentle transparency
-        p1.putalpha(int(220 * ease_p))
+        # Apply gentle transparency preserving transparent corners
+        r1, g1, b1, a1 = p1.split()
+        a1 = a1.point(lambda p: int(p * ease_p * 0.86))
+        p1 = Image.merge("RGBA", (r1, g1, b1, a1))
         bg.alpha_composite(p1, (p1_x, p1_y))
         
         # Right background paper (drifting in from right-middle)
-        p2 = papers[1].rotate(-14.0 - math.cos(t_sec * 1.1) * 2.0, expand=True, resample=Image.Resampling.BILINEAR)
+        p2 = papers[1].rotate(-14.0 - math.cos(t_sec * 1.1) * 2.0, expand=True, resample=Image.Resampling.BILINEAR, fillcolor=(0,0,0,0))
         p2_x = int(1920 - 450 * ease_p + math.cos(t_sec * 1.5) * 8)
         p2_y = int(220 + 80 * ease_p + math.sin(t_sec * 1.3) * 8)
-        p2.putalpha(int(190 * ease_p))
+        r2, g2, b2, a2 = p2.split()
+        a2 = a2.point(lambda p: int(p * ease_p * 0.75))
+        p2 = Image.merge("RGBA", (r2, g2, b2, a2))
         bg.alpha_composite(p2, (p2_x, p2_y))
         
     # Floating ambient dust particles

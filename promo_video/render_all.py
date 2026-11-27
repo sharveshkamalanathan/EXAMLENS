@@ -9,7 +9,8 @@ import subprocess
 import numpy as np
 from PIL import Image
 
-FFMPEG = r"C:\Users\sharv\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\imageio_ffmpeg\binaries\ffmpeg.exe"
+import imageio_ffmpeg
+FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 
 from promo_video.renderer.scene1 import render_scene1
 from promo_video.renderer.scene2 import render_scene2
