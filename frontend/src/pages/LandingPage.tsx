@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { PromoVideoModal } from '../components/PromoVideoModal';
 
 import { api } from '../services/api';
 import { soundEffects } from '../utils/audioEffects';
@@ -62,6 +63,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const { isDark } = useTheme();
 
   // Modals & Interactive States
+  const [promoModalOpen, setPromoModalOpen] = useState<boolean>(false);
   const [featuresModalOpen, setFeaturesModalOpen] = useState<boolean>(externalFeaturesOpen);
   const [workflowModalOpen, setWorkflowModalOpen] = useState<boolean>(externalWorkflowOpen);
   const [contactModalOpen, setContactModalOpen] = useState<boolean>(externalContactOpen);
@@ -406,6 +408,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </button>
               
+              <button
+                onClick={() => setPromoModalOpen(true)}
+                className="w-full sm:w-auto px-6 py-3.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-bold rounded-xl border border-indigo-200 dark:border-indigo-800 shadow-sm transition-all flex items-center justify-center space-x-2.5 group hover:-translate-y-0.5 cursor-pointer"
+              >
+                <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30 group-hover:scale-110 transition-transform">
+                  <Play className="w-2.5 h-2.5 fill-white translate-x-0.5" />
+                </div>
+                <span>Watch Commercial</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-200/70 dark:bg-indigo-800/80 text-indigo-800 dark:text-indigo-200">
+                  60s
+                </span>
+              </button>
+
               <button
                 onClick={() => setFeaturesModalOpen(true)}
                 className="w-full sm:w-auto px-6 py-3.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 font-semibold rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all flex items-center justify-center space-x-2 hover:-translate-y-0.5"
@@ -1446,6 +1461,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </div>
       )}
+
+      {/* 60s Official Promotional Video Modal */}
+      <PromoVideoModal
+        isOpen={promoModalOpen}
+        onClose={() => setPromoModalOpen(false)}
+        onOpenTrial={onOpenTrial}
+      />
     </div>
   );
 };

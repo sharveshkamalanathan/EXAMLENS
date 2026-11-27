@@ -163,3 +163,6 @@ node-bin/
 bin/
 backups/
 backend/pytest.ini
+
+# Promo Video intermediate raw audio
+promo_video/assets/audio/master/*.wav
