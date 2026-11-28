@@ -1,13 +1,21 @@
 # ExamLens AI — See beyond the answer.
 
 > **AI-Assisted Handwritten Examination Answer Sheet Evaluation Platform for Colleges and Educational Institutions**
-> 
-> 🌐 **Live Demo Website:** [https://examlens-m4ji.onrender.com](https://examlens-m4ji.onrender.com)
+
+[![Live Production](https://img.shields.io/badge/Live_Website-examlens--m4ji.onrender.com-success?style=for-the-badge&logo=render&logoColor=white)](https://examlens-m4ji.onrender.com/)
+[![Watch 60s Demo](https://img.shields.io/badge/Watch_Commercial-60s_Video_Demo-4F46E5?style=for-the-badge&logo=youtube&logoColor=white)](https://examlens-m4ji.onrender.com/)
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React_18_%2B_TypeScript-61DAFB.svg?style=flat&logo=react)](https://react.dev)
 [![TailwindCSS](https://img.shields.io/badge/Styling-Tailwind_CSS-38B2AC.svg?style=flat&logo=tailwind-css)](https://tailwindcss.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+---
+
+### 🌐 Official Live Platform
+- **Production URL:** [https://examlens-m4ji.onrender.com/](https://examlens-m4ji.onrender.com/)
+- **Target Audience:** Universities, Colleges, Academic Faculty & Autonomous Institutions
+- **Tagline:** *"See beyond the answer. AI Evaluates. Teacher Verifies. Student Learns."*
 
 ---
 
